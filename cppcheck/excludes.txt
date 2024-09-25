@@ -1,0 +1,3 @@
+// 哪些目录下的代码不用cppcheck检测
+Products/example/mars_template/unit_test
+Products/example/mars_template/mars_devfunc/cook_assistant/ca_test

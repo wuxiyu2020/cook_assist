@@ -1,0 +1,25 @@
+1.当需要对IRT102m进行二次温度标定，需要每隔250ms调用Lib_Irt102mAlgoProc()函数。如果不需要进行二次温度标定，不需要调用该函数
+2.Lib_SetSysWorkMode()函数是设置系统工作模式
+系统工作模式有以下:
+	1.出厂模式
+	2.标定模式
+	3.查看数据采集模式
+3.二次标定命令:
+	1.AT+TEST=0   设置出厂模式,这是字符串(不需要加回车)     ---设置成功会执行printf("@Lib_SetSysWorkMode->Work Mode");
+	2.AT+TEST=1   设置标定模式,这是字符串(不需要加回车)     ---设置成功会执行printf("@Lib_SetSysWorkMode->Factory Mode");
+	3.AT+TEST=2   设置查看数据模式,这是字符串(不需要加回车) ---设置成功会执行printf("@Lib_SetSysWorkMode->SELFTEST Mode");
+	
+	以下命令只有当系统处于标定模式才能生效
+	1.AT+ADD=1    设置当前标定温度37摄氏度 ---设置成功会执行printf("TTTTTTTTTTTTTTTTTTTTTTTTTTTT-37\r\n");
+	2.AT+ADD=2    设置当前标定温度100摄氏度---设置成功会执行printf("TTTTTTTTTTTTTTTTTTTTTTTTTTTT-100\r\n");
+	3.AT+ADD=3    设置当前标定温度250摄氏度---设置成功会执行printf("TTTTTTTTTTTTTTTTTTTTTTTTTTTT-250\r\n");
+	
+	
+注意:
+1.每次标定一个温度点需要采集50个点，就是需要50*250ms=12.5秒
+2.如果当前通道1标定37摄氏度,标定完成会执行printf("Sample Ch1 Point1 OK\r\n"); 否则标定失败执行printf("Sample Ch1 Point1 Fail\r\n")
+3.如果当前通道2标定100摄氏度,标定完成会执行printf("Sample Ch2 Point2 OK\r\n"); 否则标定失败执行printf("Sample Ch2 Point2 Fail\r\n")
+4.只有通道一完成标定37摄氏度和100摄氏度,才会执行printf("Ch1Line1Adj OK\r\n")
+5.只有通道一完成标定100摄氏度和250摄氏度,才会执行printf("Ch1Line2Adj OK\r\n")
+6.如果代码执行printf("Ch1Line1Adj OK\r\n")和printf("Ch1Line2Adj OK\r\n"),说明通道一标定完毕
+	

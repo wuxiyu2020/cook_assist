@@ -1,0 +1,42 @@
+[1m../Products/example/mars_template/app_entry.c:403:5: [31merror:[39m Found an exit path from function with non-void return type that has missing return statement [missingReturn][0m
+    }
+    ^
+[1m../Products/example/mars_template/mars_devfunc/irt102m/drv_sensor_irt102m.c:418:41: [31mwarning:[39m Uninitialized variable: pDriver->SysTick_ms [uninitvar][0m
+    IRT102mDriver.SysTick_ms = pDriver->SysTick_ms;
+                                        ^
+[1m../Products/example/mars_template/mars_devfunc/irt102m/drv_sensor_irt102m.c:439:27: [2mnote:[0m Calling function 'IRT102mDriverRegister', 1st argument '&Driver' value is <Uninit>
+    IRT102mDriverRegister(&Driver);
+                          ^
+[1m../Products/example/mars_template/mars_devfunc/irt102m/drv_sensor_irt102m.c:418:41: [2mnote:[0m Uninitialized variable: pDriver->SysTick_ms
+    IRT102mDriver.SysTick_ms = pDriver->SysTick_ms;
+                                        ^
+[1m../Products/example/mars_template/mars_devfunc/mars_ca.c:383:5: [31merror:[39m Found an exit path from function with non-void return type that has missing return statement [missingReturn][0m
+    }
+    ^
+[1m../Products/example/mars_template/mars_devfunc/mars_ca.c:389:1: [31merror:[39m Found an exit path from function with non-void return type that has missing return statement [missingReturn][0m
+}
+^
+[1m../Products/example/mars_template/mars_driver/mars_ota_module.c:655:12: [31merror:[39m Returning pointer to local variable 'version_str' that will be invalid when returning. [returnDanglingLifetime][0m
+    return version_str;
+           ^
+[1m../Products/example/mars_template/mars_driver/mars_ota_module.c:655:12: [2mnote:[0m Array decayed to pointer here.
+    return version_str;
+           ^
+[1m../Products/example/mars_template/mars_driver/mars_ota_module.c:649:10: [2mnote:[0m Variable created here.
+    char version_str[10] = {0};
+         ^
+[1m../Products/example/mars_template/mars_driver/mars_ota_module.c:655:12: [2mnote:[0m Returning pointer to local variable 'version_str' that will be invalid when returning.
+    return version_str;
+           ^
+[1m../Products/example/mars_template/mars_driver/mars_ota_module.c:701:12: [31merror:[39m Returning pointer to local variable 'version_str' that will be invalid when returning. [returnDanglingLifetime][0m
+    return version_str;
+           ^
+[1m../Products/example/mars_template/mars_driver/mars_ota_module.c:701:12: [2mnote:[0m Array decayed to pointer here.
+    return version_str;
+           ^
+[1m../Products/example/mars_template/mars_driver/mars_ota_module.c:695:10: [2mnote:[0m Variable created here.
+    char version_str[10] = {0};
+         ^
+[1m../Products/example/mars_template/mars_driver/mars_ota_module.c:701:12: [2mnote:[0m Returning pointer to local variable 'version_str' that will be invalid when returning.
+    return version_str;
+           ^

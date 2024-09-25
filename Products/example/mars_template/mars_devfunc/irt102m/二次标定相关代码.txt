@@ -1,0 +1,53 @@
+步骤1:
+申明以下变量:
+uint8_t uartrevbuffer[50];
+uint8_t uartrevlen;
+uint8_t RevFlag;
+
+步骤2:
+每隔250ms执行以下代码块
+{
+	AlgoProc();
+	if(RevFlag)
+	{
+		RevFlag = 0;
+		Lib_SetSysWorkMode(uartrevbuffer,uartrevlen);
+		memset(uartrevbuffer,0x00,sizeof(uartrevbuffer));
+	}
+}
+步骤3:
+在cli.c文件，修改get_input()函数如下:
+static int get_input(char *inbuf, unsigned int *bp)
+{
+    char c;
+    uint8_t index = 0;
+    int esc = 0, key1 = -1, key2 = -1;
+    if (inbuf == NULL)
+    {
+        aos_cli_printf("inbuf_null\r\n");
+        return 0;
+    }
+
+    while (cli_getchar(&c) == 1)
+    {
+        if(c == 0x0A)
+        {
+            uartrevbuffer[index] = 0x0A;
+            uartrevlen = index + 1;
+            index = 0;
+            RevFlag = 1;
+        }else
+        {
+            uartrevbuffer[index] = c;
+            index ++;
+        }
+    }
+
+    return 0;
+}
+步骤4:
+初始化用户数据存储区域,用于存储二次标定的参数,如下:
+#define HAL_PARTITION HAL_PARTITION_PARAMETER_3  (已在Lib_Irt102mDataCalibra.h文件定义)
+
+hal_flash_init(HAL_PARTITION);
+hal_flash_read(HAL_PARTITION,&off,(unsigned char*)&g_sGas_Sensor_ParaS,sizeof(SENSOR_PARA_S));

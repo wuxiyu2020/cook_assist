@@ -1,0 +1,37 @@
+stages:
+  - build
+  - test
+  - notify
+
+build_job:
+  image: tg7100-env:latest 
+  stage: build
+  script: ./build.sh clean && ./build.sh
+  only:
+    - master
+  tags:
+    - docker
+  artifacts:
+    name: ${CI_PROJECT_NAME}_out
+    paths:
+      - $OUT_ARTIFACTS_DIR/*
+    expire_in: 30 days
+
+cppcheck:
+  stage: test
+  script: 
+    - cd cppcheck
+    - cppcheck -v --std=c99 --language=c --config-excludes-file=./excludes.txt --force -q --suppressions-list=suppressions.txt --platform=platform.xml  ../Products/example/mars_template --output-file=./result.txt
+    - python analyze_result.py
+  only:
+    - master
+  tags:
+    - shell
+
+send_wechat:
+  stage: notify
+  # 失败时发送通知
+  when: on_failure
+  script: ./notify.sh
+  tags:
+    - shell

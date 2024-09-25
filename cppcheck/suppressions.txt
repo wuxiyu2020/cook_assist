@@ -1,0 +1,5 @@
+// 不用python脚本处理形参越界误报，就用下面枚举的方式，告诉cppcheck指定文件指定行出现arrayIndexOutOfBounds问题时，就过滤掉。
+// 但是这很不稳定， 只要增删了文件代码，行号就会变，因此利用python脚本处理
+// arrayIndexOutOfBounds:../Products/example/mars_template/app_entry.c:767
+// arrayIndexOutOfBounds:../Products/example/mars_template/app_entry.c:801
+// arrayIndexOutOfBounds:../Products/example/mars_template/mars_driver/mars_atcmd.c:229
