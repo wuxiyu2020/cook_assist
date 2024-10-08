@@ -667,6 +667,58 @@ static void handle_linkkey_cmd(char *pwbuf, int blen, int argc, char **argv)
     }
 }
 
+static void handle_set_radar_gear(char *pwbuf, int blen, int argc, char **argv)
+{
+    if(argc == 2)
+    {
+        int cmd = atoi(argv[1]);
+        if(cmd >= 0 && cmd <= 3)
+        {
+            LOGI("mars","set radar gear:%d",cmd);
+            char buf_setmsg[8] = {0};
+            int buf_len = 0;
+            buf_setmsg[buf_len++] = prop_RadarGear;
+            buf_setmsg[buf_len++] = cmd;
+            Mars_uartmsg_send(cmd_set,uart_get_seq_mid(),buf_setmsg,buf_len,3);
+        }
+        else
+        {
+            LOGI("mars","valve gear is out of range");
+        }
+    }
+    else
+    {
+        LOGI("mars","radar gear input param is error");
+    }
+    return;
+}
+
+static void handle_set_mutivalve_gear(char *pwbuf, int blen, int argc, char **argv)
+{
+    if(argc == 2)
+    {
+        int cmd = atoi(argv[1]);
+        if(cmd >= 0 && cmd <= 7)
+        {
+            LOGI("mars","set muti valve gear:%d",cmd);
+            char buf_setmsg[8] = {0};
+            int buf_len = 0;
+            buf_setmsg[buf_len++] = prop_MultiValveGear;
+            buf_setmsg[buf_len++] = cmd;
+            Mars_uartmsg_send(cmd_set,uart_get_seq_mid(),buf_setmsg,buf_len,3);
+        }
+        else
+        {
+            LOGI("mars","multi valve gear is out of range");
+        }
+    }
+    else
+    {
+        LOGI("mars","multivalve input param is error");
+    }
+    return;
+}
+
 static void handle_awss_cmd(char *pwbuf, int blen, int argc, char **argv)
 {
     aos_schedule_call((aos_call_t)do_awss, NULL);
@@ -790,6 +842,18 @@ static struct cli_command linkkeycmd = {
     .name = "linkkey",
     .help = "set/get linkkit keys. linkkey [<Product Key> <Device Name> <Device Secret> <Product Secret>]",
     .function = handle_linkkey_cmd
+};
+
+static struct cli_command set_radar_gear = {
+    .name = "set_radar_gear",
+    .help = "set_radar [gear(0-3)]",
+    .function = handle_set_radar_gear
+};
+
+static struct cli_command set_mutivalve_gear = {
+    .name = "set_valve_gear",
+    .help = "set_valve_gear [gear(1-8)]",
+    .function = handle_set_mutivalve_gear
 };
 
 #endif
@@ -1191,12 +1255,22 @@ int application_start(int argc, char **argv)
     aos_cli_register_command(&awss_cmd);
     aos_cli_register_command(&send_temp_cmd);
     aos_cli_register_command(&set_RSwitch);
-    aos_cli_register_command(&set_PanfireSwitch);
+    //aos_cli_register_command(&set_PanfireSwitch);
 #ifdef EN_COMBO_NET
     aos_cli_register_command(&awss_ble_cmd);
     aos_cli_register_command(&ble_status_report_cmd);
 #endif
     aos_cli_register_command(&linkkeycmd);
+    int ret = aos_cli_register_command(&set_radar_gear);
+    if(ret != 0)
+    {
+        LOGI("mars","fail to set radar command,ret = %d", ret);
+    }
+    ret = aos_cli_register_command(&set_mutivalve_gear);
+    if(ret != 0)
+    {
+        LOGI("mars","fail to set valve command,ret = %d", ret);
+    }
 #endif
 
     aos_cli_register_commands(&mfg_cli_cmd[0], sizeof(mfg_cli_cmd) / sizeof(struct cli_command));
@@ -1236,6 +1310,14 @@ int application_start(int argc, char **argv)
             mars_dm_get_ctx()->status.NetState = NET_STATE_NOT_CONNECTED;
             mars_store_netstatus();
         }
+    }
+
+    extern void AuxTimer_function(void *arg);
+    extern aos_task_t AuxTime;
+    ret = aos_task_new_ext(&AuxTime, "AuxCookLeftTime", AuxTimer_function, NULL, 1024, AOS_DEFAULT_APP_PRI + 3);
+    if(ret != 0)
+    {
+        LOGI("mars","AuxLeftTime task create fail");
     }
 
     aos_loop_run();

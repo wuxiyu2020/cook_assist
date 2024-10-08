@@ -4,7 +4,7 @@
  * @Date         : 2022-08-17 16:57:42
  * @LastEditors: Zhouxc
  * @LastEditTime: 2024-07-01 17:31:55
- * @FilePath     : /et70/Products/example/mars_template/mars_devfunc/mars_stove.c
+ * @FilePath     : /et70-ca3/Products/example/mars_template/mars_devfunc/mars_stove.c
  */
 
 #include <stdio.h>
@@ -33,6 +33,45 @@ static uint8_t i2c_temp_display_cont = 0;   // i2C烹饪助手，下发头显温
 #define TEMP_PACK_SUM       24
 #define TEMP_FREQ           40
 
+char *AuxMode[]={"未设定","炒模式","煮模式","煎模式","炸模式"};
+aos_task_t AuxTime;
+
+void AuxTimer_function(void *arg)
+{
+    while(1)
+    {
+        mars_template_ctx_t *mars_template_ctx = mars_dm_get_ctx();
+        aos_msleep(1000);
+        LOGI("mars","lefttime:%d",mars_template_ctx->status.AuxCookLeftTime_s);
+        if(mars_template_ctx->status.AuxCookLeftTime_s != 0)
+        {
+            mars_template_ctx->status.AuxCookLeftTime_s -= 1; 
+        }
+        if(mars_template_ctx->status.AuxCookLeftTime_s < 0)
+        {
+            mars_template_ctx->status.AuxCookLeftTime_s = 0;
+        }
+        if(mars_template_ctx->status.AuxCookLeftTime_s % 60 == 0 && mars_template_ctx->status.AuxCookLeftTime_s != 0)
+        {
+            LOGI("mars","一键烹饪模式时间设置为time send:%d",mars_template_ctx->status.AuxCookLeftTime_s/60);
+            char buf_setmsg[8] = {0};
+            int buf_len = 0;
+            buf_setmsg[buf_len++] = prop_AuxCookLeftTime;
+            buf_setmsg[buf_len++] = mars_template_ctx->status.AuxCookLeftTime_s/60;
+            Mars_uartmsg_send(cmd_store,uart_get_seq_mid(),buf_setmsg,buf_len,3);
+        }
+        else if(mars_template_ctx->status.AuxCookLeftTime_s == 0 && mars_template_ctx->status.AuxCookSetTime != 0)
+        {
+            LOGI("mars","一键烹饪模式时间设置为time send:0");
+            char buf_setmsg[8] = {0};
+            int buf_len = 0;
+            buf_setmsg[buf_len++] = prop_AuxCookLeftTime;
+            buf_setmsg[buf_len++] = 0;
+            Mars_uartmsg_send(cmd_store,uart_get_seq_mid(),buf_setmsg,buf_len,3);
+        }
+    }
+    aos_task_exit(0);
+}
 
 // typedef struct M_STOVE_TEMP{
 //     uint64_t time;
@@ -791,6 +830,89 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
             break;
         }
 
+        case prop_AuxCook:
+        {
+            uint8_t AuxCookSwitch = msg->msg_buf[(*index)+1];
+            uint8_t AuxCookMode = msg->msg_buf[(*index)+2];
+            uint8_t AuxTime = msg->msg_buf[(*index)+3];
+            uint8_t AuxTemp = msg->msg_buf[(*index)+4];
+
+            if (mars_template_ctx->status.AuxCookSwitch != AuxCookSwitch || mars_template_ctx->status.AuxCookMode != AuxCookMode || \
+            mars_template_ctx->status.AuxCookSetTime != AuxTime || mars_template_ctx->status.AuxCookSetTemp != AuxTemp)
+            {
+                LOGI("mars", "解析属性0x%02X: 辅助烹饪发生变化(%d %d %d %d -> %d %d %d %d)", msg->msg_buf[(*index)], mars_template_ctx->status.AuxCookSwitch, mars_template_ctx->status.AuxCookMode, \
+                mars_template_ctx->status.AuxCookSetTime, mars_template_ctx->status.AuxCookSetTemp, AuxCookSwitch, AuxCookMode, AuxTime, AuxTemp);
+
+                if(mars_template_ctx->status.AuxCookSwitch == 1 && AuxCookSwitch == 0)
+                {
+                    LOGI("mars","电控端主动退出一键烹饪模式");
+                    char buf_setmsg[8] = {0};
+                    int buf_len = 0;
+                    buf_setmsg[buf_len++] = prop_AuxCookStatus;
+                    buf_setmsg[buf_len++] = 0x02;           //设备端主动退出的目前属于异常退出
+                    LOGI("mars","一键烹饪模式异常退出");
+                    Mars_uartmsg_send(cmd_store,uart_get_seq_mid(),buf_setmsg,buf_len,3);
+
+                }
+                
+                //设置为炖模式，但是没有设置炖的时间，错误设定
+                if(AuxCookMode == 0x02 && AuxTime == 0x00)
+                {
+                    LOGI("mars","Cook Assistant Error!设置为炖模式，但是没有设置炖的时间");
+                }
+                //设置为炸模式，但是没有设置炸的温度，错误设定
+                else if(AuxCookMode == 0x04 && AuxTemp == 0x00)
+                {
+                    LOGI("mars","Cook Assistant Error!设置为炸模式，但是没有设置炸的温度");
+                }
+                //正常设定
+                else
+                {
+                    mars_template_ctx->status.AuxCookSwitch = AuxCookSwitch;
+                    mars_template_ctx->status.AuxCookMode =AuxCookMode;
+                    mars_template_ctx->status.AuxCookSetTime = AuxTime;
+                    mars_template_ctx->status.AuxCookSetTemp = AuxTemp;
+                    LOGI("mars","Cook Assistant set Success!设置模式成功：%s",AuxMode[mars_template_ctx->status.AuxCookMode]);
+                    mars_template_ctx->status.AuxCookLeftTime = mars_template_ctx->status.AuxCookSetTime;
+                    mars_template_ctx->status.AuxCookLeftTime_s = mars_template_ctx->status.AuxCookSetTime * 60;
+
+                    if(mars_template_ctx->status.AuxCookSetTime != 0)
+                    {
+                        char buf_setmsg[8] = {0};
+                        int buf_len = 0;
+                        buf_setmsg[buf_len++] = prop_AuxCookLeftTime;
+                        buf_setmsg[buf_len++] = mars_template_ctx->status.AuxCookSetTime;
+                        LOGI("mars","一键烹饪模式时间设置为：%d",mars_template_ctx->status.AuxCookSetTime);
+                        
+                        Mars_uartmsg_send(cmd_store,uart_get_seq_mid(),buf_setmsg,buf_len,3);
+                    }
+                    if(mars_template_ctx->status.AuxCookSetTemp != 0)
+                    {
+                        LOGI("mars","一键烹饪模式温度设置为：%d",mars_template_ctx->status.AuxCookSetTemp);
+                    }
+                }
+
+                //一键烹饪相关属性暂时不上报
+                //*report_en = true;
+                // mars_template_ctx->status.RMultiMode = msg->msg_buf[(*index)+1];
+            }
+
+            //mars_template_ctx->steamoven_reportflg |= VALID_BIT(msg->msg_buf[(*index)]);
+            (*index)+=4;
+            break;
+        }
+
+        //无需解析
+        // case prop_AuxCookStatus:
+        // {
+
+        // }
+        
+        // case prop_AuxCookLeftTime
+        // {
+
+        // }
+
         case 0x2D:
         {
             (*index)+=1;
@@ -1369,5 +1491,70 @@ int mars_irtInit(void)
     Driver_IRT102mInit(250, IRT102mCallBack);
 }
 
+void mars_sensor_uartMsgFromSlave(uartmsg_que_t *msg, 
+                                mars_template_ctx_t *mars_template_ctx, 
+                                uint16_t *index, bool *report_en, uint8_t *nak)
+{
+    switch (msg->msg_buf[(*index)])
+    {
+        case prop_RadarGear:
+        {
+            if (mars_template_ctx->status.RadarGear != msg->msg_buf[(*index)+1])
+            {
+                LOGI("mars", "解析属性0x%02X: Radar_changed雷达档位变化(%d - %d)", msg->msg_buf[(*index)], mars_template_ctx->status.RadarGear, msg->msg_buf[(*index)+1]);
+                *report_en = true;                        
+                mars_template_ctx->status.RadarGear = msg->msg_buf[(*index)+1];
+            }
+
+            mars_template_ctx->sensor_reportflg |= VALID_BIT(msg->msg_buf[(*index)]);
+            (*index)+=1;
+            break;
+        }
+        case prop_RadarSign:
+        {
+            if (mars_template_ctx->status.RadarSign != msg->msg_buf[(*index)+1])
+            {
+                LOGI("mars", "解析属性0x%02X: Radar_changed雷达信号变化(%d - %d)", msg->msg_buf[(*index)], mars_template_ctx->status.RadarSign, msg->msg_buf[(*index)+1]);
+                //*report_en = true;                         
+                mars_template_ctx->status.RadarSign = msg->msg_buf[(*index)+1];
+            }
+
+            mars_template_ctx->sensor_reportflg |= VALID_BIT(msg->msg_buf[(*index)]);
+            (*index)+=1;
+            break;
+        }
+        case prop_MultiValveGear:
+        {
+            if (mars_template_ctx->status.MultiValveGear != msg->msg_buf[(*index)+1])
+            {
+                LOGI("mars", "解析属性0x%02X: 八段阀火力发生变化(%d - %d)", msg->msg_buf[(*index)], mars_template_ctx->status.MultiValveGear, msg->msg_buf[(*index)+1]);
+                //*report_en = true;                        
+                mars_template_ctx->status.MultiValveGear = msg->msg_buf[(*index)+1];
+            }
+
+            mars_template_ctx->sensor_reportflg |= VALID_BIT(msg->msg_buf[(*index)]);
+            (*index)+=1;
+            break;
+        }
+        case prop_MultiVaveStatus:
+        {
+            if (mars_template_ctx->status.MultiVaveStatus != msg->msg_buf[(*index)+1])
+            {
+                LOGI("mars", "解析属性0x%02X: 八段阀处于最大挡位置变化(%d - %d)", msg->msg_buf[(*index)], mars_template_ctx->status.MultiVaveStatus, msg->msg_buf[(*index)+1]);
+                //*report_en = true;                        
+                mars_template_ctx->status.MultiVaveStatus = msg->msg_buf[(*index)+1];
+            }
+
+            mars_template_ctx->sensor_reportflg |= VALID_BIT(msg->msg_buf[(*index)]);
+            (*index)+=1;
+            break;
+        }
+
+        default:
+            *nak = NAK_ERROR_UNKOWN_PROCODE;
+            break;
+    }
+    return;
+}
 
 #endif

@@ -4,7 +4,7 @@
  * @Date         : 2022-06-06 17:18:46
  * @LastEditors: Zhouxc
  * @LastEditTime: 2024-06-18 16:15:24
- * @FilePath     : /tg7100c/Products/example/mars_template/mars_devfunc/mars_devmgr.c
+ * @FilePath     : /et70-ca3/Products/example/mars_template/mars_devfunc/mars_devmgr.c
  */
 
 #include <stdio.h>
@@ -337,19 +337,34 @@ bool mars_uart_prop_process(uartmsg_que_t *msg)
                     i+=1;
                     break;
                 }
+
+                //增加产品型号的处理
+                case prop_Prodcutname:
+                {
+                    LOGW("mars", "解析属性calc prop:0x%02X", msg->msg_buf[i]);
+                    int length = msg->msg_buf[i+1];
+                    LOGI("mars","Product name lenght is:%d",length);
+                    i += (length+1);
+                    break;
+                }
+
                 default:
                     LOGE("mars", "error 收到未知属性,停止解析!!! (属性 = 0x%02X)", msg->msg_buf[i]);
                     return false;
                     break;
             }
-        }
-        else if (msg->msg_buf[i] >= PROP_INTEGRATED_STOVE_BEIGN && msg->msg_buf[i] <= PROP_INTEGRATED_STOVE_END)
+        } 
+        else if ((msg->msg_buf[i] >= PROP_INTEGRATED_STOVE_BEIGN && msg->msg_buf[i] <= PROP_INTEGRATED_STOVE_END) || (msg->msg_buf[i] >= prop_AuxCook && msg->msg_buf[i] <= prop_AuxCookLeftTime))
         {
             mars_stove_uartMsgFromSlave(msg, mars_template_ctx, &i, &report_en, &nak);
         }
         else if (msg->msg_buf[i] >= PROP_PARA_BEGIN && msg->msg_buf[i] <= PROP_PARA_END)
         {
             mars_steamoven_uartMsgFromSlave(msg, mars_template_ctx, &i, &report_en, &nak);
+        }
+        else if(msg->msg_buf[i] >= PROP_SENSOR_BEGIN && msg->msg_buf[i] <= PROP_SENSOR_END)
+        {
+            mars_sensor_uartMsgFromSlave(msg, mars_template_ctx, &i, &report_en, &nak);
         }
         else if (msg->msg_buf[i] == prop_LSteamGear || msg->msg_buf[i] == prop_LMicroWaveGear) //0x80
         {
@@ -400,7 +415,7 @@ bool mars_uart_prop_process(uartmsg_que_t *msg)
                     break;
                 }
                 default:
-                    LOGE("mars", "error 收到未知属性,停止解析!!! (属性 = 0x%02X)", msg->msg_buf[i]);
+                    LOGE("mars", "system error 收到未知属性,停止解析!!! (属性 = 0x%02X)", msg->msg_buf[i]);
                     return false;
                     break;
             }

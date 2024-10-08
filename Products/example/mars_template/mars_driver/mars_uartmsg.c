@@ -2,9 +2,9 @@
  * @Description  : Serial port general protocol message processing.
  * @Author       : zhoubw
  * @Date         : 2022-03-11 15:10:11
- * @LastEditors  : zhoubw
- * @LastEditTime : 2022-11-15 15:35:19
- * @FilePath     : /tg7100c/Products/example/mars_template/mars_driver/mars_uartmsg.c
+ * @LastEditors  : zhouxc
+ * @LastEditTime : 2024-09-26 10:18:26
+ * @FilePath     : /et70-ca3/Products/example/mars_template/mars_driver/mars_uartmsg.c
  */
 
 
@@ -404,6 +404,8 @@ static void mars_uart_process_cb(uint8_t port, void *buf, uint32_t len, uint32_t
     uartmsg_que_t recv_msg = {0};
     uint32_t msg_head = 0;
     *remain_len = len > UART_BUF_SIZE?UART_BUF_SIZE:len;
+
+    output_hex_string("原始数据接收",u8_buf,len);
 
     if (M_atcmd_getstatus() && ((*remain_len) > 3))
     {

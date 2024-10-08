@@ -2,9 +2,9 @@
  * @Description  : 
  * @Author       : zhoubw
  * @Date         : 2022-06-08 10:13:54
- * @LastEditors  : zhoubw
- * @LastEditTime : 2022-11-28 14:26:24
- * @FilePath     : /tg7100c/Products/example/mars_template/mars_devfunc/mars_devmgr.h
+ * @LastEditors  : zhouxc
+ * @LastEditTime : 2024-09-27 11:27:38
+ * @FilePath     : /et70-ca3/Products/example/mars_template/mars_devfunc/mars_devmgr.h
  */
 
 #ifndef __MARS_DEVMGR_H__
@@ -55,6 +55,14 @@ enum DEVIECE_NET_STATE
     NET_STATE_CONNECTING    = 2     //2：配网中
 };
 
+typedef enum AUXCOOKMODE
+{
+    MODE_CHAO = 1,          //炒模式
+    MODE_ZHU = 2,           //煮模式
+    MODE_JIAN = 3,          //煎模式
+    MODE_ZHA = 4            //炸模式
+} aux_cook_mode;
+
 typedef enum{
     prop_AllGet= 0x00,
 
@@ -68,6 +76,7 @@ typedef enum{
 
     prop_ErrCode = 0x0A,                //警报状态
     prop_ErrCodeShow = 0x0B,            //当前显示的报警状态
+    prop_Prodcutname = 0x0F,            //产品型号
 
 #if MARS_STOVE 
     prop_LStoveStatus = 0x11,           //左灶状态(旋钮状态)
@@ -147,6 +156,15 @@ typedef enum{
     prop_RMultiMode,                    //右腔烹饪类型
     prop_RCookbookID,                   //右腔菜谱ID
 #endif
+
+    prop_RadarGear = 0x90,              //雷达档位
+    prop_RadarSign = 0x91,              //雷达信号
+    prop_MultiValveGear = 0x92,         //八段阀档位
+    prop_MultiVaveStatus = 0x93,        //八段阀状态
+
+    prop_AuxCook = 0xA0,                //辅助烹饪
+    prop_AuxCookStatus = 0xA1,          //辅助烹饪进行状态
+    prop_AuxCookLeftTime = 0xA2,        //辅助烹饪剩余运行时间
 
 #if MARS_DISHWASHER
     prop_CmdWashAction = 0x41,          //洗碗动作      0-4
@@ -392,7 +410,23 @@ typedef struct _DEV_STATUS{
     uint8_t RStOvMode;                              //右腔工作模式
     uint8_t RMultiMode;                             //右腔烹饪类型
 #endif
+
+    uint8_t RadarGear;                  //雷达档位，0：关闭，1：近挡，2：中挡，3：远挡
+    uint8_t RadarSign;                  //雷达信号，0：无信号，1：有信号
+    uint8_t MultiValveGear;             //八段阀火力，0x01-0x08档位1-8
+    uint8_t MultiVaveStatus;            //八段阀状态，0：不处于最大档位，1：处于最大档位
+
+    uint8_t AuxCookSwitch;                 //辅助烹饪开关，0：关闭，1：打开
+    aux_cook_mode AuxCookMode;          //辅助烹饪模式，1：炒，2：煮，3：煎，4：炸
+    uint8_t AuxCookSetTemp;                //辅助烹饪设定温度，不设定温度时此数值为0
+    uint8_t AuxCookSetTime;
     
+    uint8_t AuxCookStatus;              //辅助烹饪进行状态,0：未运行，1：完成退出，2：异常退出
+    uint8_t AuxCookLeftTime;            //辅助烹饪剩余运行时间
+    uint32_t AuxCookLeftTime_s;         //辅助烹饪剩余运行时间s
+
+    
+
 #if MARS_DISPLAY
     uint8_t ChickenSoupDispSwitch;                          //语录显示总开关
     mars_displayMsg_st ChickenSoupContent[5];               //下发文字内容
@@ -428,6 +462,7 @@ typedef struct {
     uint16_t common_reportflg;          //通用属性上报标记
     uint64_t display_reportflg;         //显示板属性上报标记
     uint64_t stove_reportflg;           //集成灶属性上报标记
+    uint64_t sensor_reportflg;          //传感器类属性上报标记
     uint64_t steamoven_reportflg;       //蒸烤箱属性上报标记
     uint64_t dishwasher_reportflg;      //洗碗机属性上报标记
     uint64_t steamoven_spec_reportflg;  //蒸烤特殊类上报标记
@@ -457,7 +492,7 @@ typedef struct{
 }mars_cook_assist_t;
 
 #define PROP_SYS_BEGIN          (prop_ElcSWVersion)
-#define PROP_SYS_END            (prop_ErrCodeShow)
+#define PROP_SYS_END            (prop_Prodcutname)
 
 #define PROP_INTEGRATED_STOVE_BEIGN (prop_LStoveStatus)
 #define PROP_INTEGRATED_STOVE_END   (prop_OilBoxState)
@@ -466,6 +501,9 @@ typedef struct{
 #define PROP_PARA_BEGIN         (prop_LStOvOperation)
 #define PROP_PARA_END           (prop_RCookbookID)
 #endif
+
+#define PROP_SENSOR_BEGIN       (prop_RadarGear)
+#define PROP_SENSOR_END         (prop_AuxCookLeftTime)
 
 #if (MARS_DISHWASHER)
 #define PROP_PARA_BEGIN         (prop_CmdWashAction)

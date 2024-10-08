@@ -4,7 +4,7 @@
  * @Date         : 2022-08-17 16:58:28
  * @LastEditors: Zhouxc
  * @LastEditTime: 2024-05-20 14:53:43
- * @FilePath     : /tg7100c/Products/example/mars_template/mars_devfunc/mars_steamoven.c
+ * @FilePath     : /et70-ca3/Products/example/mars_template/mars_devfunc/mars_steamoven.c
  */
 
 #include <string.h>
