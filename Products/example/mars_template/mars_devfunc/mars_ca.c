@@ -4,7 +4,7 @@
  * @Date         : 2022-07-28 15:42:59
  * @LastEditors: Zhouxc
  * @LastEditTime: 2024-06-17 14:13:15
- * @FilePath     : /et70/Products/example/mars_template/mars_devfunc/mars_ca.c
+ * @FilePath     : /et70-ca3/Products/example/mars_template/mars_devfunc/mars_ca.c
  */
 
 
@@ -708,4 +708,11 @@ void mars_ca_init(void)
     register_dryburn_remind_cb(dry_fire_info_cb);
     register_close_beeper_cb(close_beeper_cb);
     set_dry_fire_switch(g_user_cook_assist.RDryFireSwitch, 1, g_user_cook_assist.RDryFireUserType);
+
+    char buf_setmsg[8] = {0};
+    uint8_t buf_len = 0;
+    buf_setmsg[buf_len++] = prop_RadarGear;                    //开机设置一次雷达档位为中档
+    buf_setmsg[buf_len++] = 0x02;
+
+    Mars_uartmsg_send(cmd_set, uart_get_seq_mid(), &buf_setmsg, sizeof(buf_setmsg), 3);
 }

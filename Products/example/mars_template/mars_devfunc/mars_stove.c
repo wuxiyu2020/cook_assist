@@ -35,6 +35,23 @@ static uint8_t i2c_temp_display_cont = 0;   // i2C烹饪助手，下发头显温
 
 char *AuxMode[]={"未设定","炒模式","煮模式","煎模式","炸模式"};
 aos_task_t AuxTime;
+static aos_timer_t light_close_timer;
+
+void timer_func_close_light(void *arg1, void *arg2)
+{
+    char buf_setmsg[8] = {0};
+    uint8_t len = 0;
+    buf_setmsg[len++] = prop_HoodLight;                    //临时根据雷达信号设置烟机照明方便测试
+    buf_setmsg[len++] = 0;
+    Mars_uartmsg_send(cmd_set, uart_get_seq_mid(), &buf_setmsg, sizeof(buf_setmsg), 3);
+
+    if (light_close_timer.hdl != NULL)
+    {
+        aos_timer_stop(&light_close_timer);
+        aos_timer_free(&light_close_timer);
+        LOGI("mars", "关闭照明定时器 (time=%d秒)", 2);
+    }
+}
 
 void AuxTimer_function(void *arg)
 {
@@ -1137,6 +1154,12 @@ void mars_stove_setToSlave(cJSON *root, cJSON *item, mars_template_ctx_t *mars_t
         set_dry_fire_switch(g_user_cook_assist.RDryFireSwitch, 1, g_user_cook_assist.RDryFireUserType);
     }
 
+    if ((item = cJSON_GetObjectItem(root, "MutivalveGear")) != NULL && cJSON_IsNumber(item)) {
+        LOGI("mars", "平台下发: 八段阀火力切换 = %d", item->valueint);
+        buf_setmsg[(*buf_len)++] = prop_MultiValveGear;                  //八段阀
+        buf_setmsg[(*buf_len)++] = item->valueint;
+    }
+
 }
 
 void mars_ca_handle()
@@ -1329,6 +1352,32 @@ void mars_stove_changeReport(cJSON *proot, mars_template_ctx_t *mars_template_ct
     mars_template_ctx->stove_reportflg = 0;
 }
 
+void mars_sensor_changeReport(cJSON *proot, mars_template_ctx_t *mars_template_ctx)
+{
+    for (uint8_t index=prop_RadarGear; index<=prop_MultiVaveStatus; ++index)
+    {
+        if (mars_template_ctx->sensor_reportflg & VALID_BIT(index))
+        {
+            switch(index)
+            {
+                case prop_MultiValveGear:
+                {
+                    cJSON_AddNumberToObject(proot, "MutivalveGear", mars_template_ctx->status.MultiValveGear);
+                    break;
+                }
+                
+                default:
+                {
+                    LOGI("mars","now not support this prop report");
+                }
+
+            }
+        }
+    }
+
+    mars_template_ctx->sensor_reportflg = 0;
+}
+
 
 void cook_temp_send_display(int16_t temp)
 {
@@ -1512,6 +1561,18 @@ void mars_sensor_uartMsgFromSlave(uartmsg_que_t *msg,
         }
         case prop_RadarSign:
         {
+            //没有定时器任务存在，且雷达信号为1，则打开照明，创建一个2s的定时器
+            // if(light_close_timer.hdl == NULL && msg->msg_buf[(*index)+1] == 1)
+            // {
+            //     char buf_setmsg[8] = {0};
+            //     uint8_t len = 0;
+            //     buf_setmsg[len++] = prop_HoodLight;                    //临时根据雷达信号设置烟机照明方便测试
+            //     buf_setmsg[len++] = 1;
+            //     Mars_uartmsg_send(cmd_set, uart_get_seq_mid(), &buf_setmsg, sizeof(buf_setmsg), 3);
+
+            //     aos_timer_new_ext(&light_close_timer, timer_func_close_light, NULL, 2 * 1000, 0, 1);
+            // }
+
             if (mars_template_ctx->status.RadarSign != msg->msg_buf[(*index)+1])
             {
                 LOGI("mars", "解析属性0x%02X: Radar_changed雷达信号变化(%d - %d)", msg->msg_buf[(*index)], mars_template_ctx->status.RadarSign, msg->msg_buf[(*index)+1]);
