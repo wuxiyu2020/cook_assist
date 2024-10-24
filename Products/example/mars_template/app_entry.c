@@ -1312,13 +1312,13 @@ int application_start(int argc, char **argv)
         }
     }
 
-    extern void AuxTimer_function(void *arg);
-    extern aos_task_t AuxTime;
-    ret = aos_task_new_ext(&AuxTime, "AuxCookLeftTime", AuxTimer_function, NULL, 1024, AOS_DEFAULT_APP_PRI + 3);
-    if(ret != 0)
-    {
-        LOGI("mars","AuxLeftTime task create fail");
-    }
+    // extern void AuxTimer_function(void *arg);
+    // extern aos_task_t AuxTime;
+    // ret = aos_task_new_ext(&AuxTime, "AuxCookLeftTime", AuxTimer_function, NULL, 1024, AOS_DEFAULT_APP_PRI + 3);
+    // if(ret != 0)
+    // {
+    //     LOGI("mars","AuxLeftTime task create fail");
+    // }
 
     aos_loop_run();
 

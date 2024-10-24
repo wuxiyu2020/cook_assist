@@ -16,6 +16,7 @@
 #include "../dev_config.h"
 #include "../mars_driver/mars_cloud.h"
 #include "cook_assistant/cook_wrapper.h"
+#include "cook_assistant/aux_api.h"
 #include "mars_stove.h"
 #include "mars_httpc.h"
 #if 1
@@ -27,6 +28,7 @@ static uint8_t i2c_temp_display_cont = 0;   // i2C烹饪助手，下发头显温
 #if MARS_STOVE
 
 #define VALID_BIT(n)    ((uint64_t)1 << (n - prop_LStoveStatus))
+#define SVALID_BIT(n)   ((uint64_t)1 << (n - prop_RadarGear))
 #define ONE_KEY_RECIPE_KV  "onekey_recipe"
 
 #pragma pack(1)
@@ -225,7 +227,7 @@ void static m_tempreport_pre(int16_t i16_tempvalue, mars_template_ctx_t *mars_te
     if (g_user_cook_assist.ROilTempSwitch)
     {
         //3s下发一次当前的温度，为了方式跳动偏差，此处采取平均值的方式
-        if ((time_temp_mqtt == 0) || (aos_now_ms() - time_temp_mqtt) >= (3*1000))
+        if ((time_temp_mqtt == 0) || (aos_now_ms() - time_temp_mqtt) >= (1*5000))
         {
             // char property_payload[64] = {0};
             // sprintf(property_payload, "{\"ROilTemp\": %d}", mars_template_ctx->status.ROilTemp);
@@ -239,7 +241,7 @@ void static m_tempreport_pre(int16_t i16_tempvalue, mars_template_ctx_t *mars_te
             }
             else
             {
-                mars_sync_tempture(Send_temp, mars_template_ctx->status.REnvTemp);
+                mars_sync_tempture(i16_tempvalue, mars_template_ctx->status.REnvTemp);
                 LOGI("mars","瞬时Send_temp:%d,平均后Send_time:%d\r\n",i16_tempvalue,Send_temp);
             } 
            
@@ -400,6 +402,7 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
             }
 
             set_ignition_switch(mars_template_ctx->status.RStoveStatus, 1);
+            set_aux_ignition_switch(mars_template_ctx->status.RStoveStatus, 1);
             mars_template_ctx->stove_reportflg |= VALID_BIT(msg->msg_buf[(*index)]);
             (*index)+=1;
             break;
@@ -907,6 +910,8 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
                     {
                         LOGI("mars","一键烹饪模式温度设置为：%d",mars_template_ctx->status.AuxCookSetTemp);
                     }
+
+                    auxiliary_cooking_switch(mars_template_ctx->status.AuxCookSwitch,mars_template_ctx->status.AuxCookMode,mars_template_ctx->status.AuxCookSetTime,mars_template_ctx->status.AuxCookSetTemp);
                 }
 
                 //一键烹饪相关属性暂时不上报
@@ -1352,32 +1357,6 @@ void mars_stove_changeReport(cJSON *proot, mars_template_ctx_t *mars_template_ct
     mars_template_ctx->stove_reportflg = 0;
 }
 
-void mars_sensor_changeReport(cJSON *proot, mars_template_ctx_t *mars_template_ctx)
-{
-    for (uint8_t index=prop_RadarGear; index<=prop_MultiVaveStatus; ++index)
-    {
-        if (mars_template_ctx->sensor_reportflg & VALID_BIT(index))
-        {
-            switch(index)
-            {
-                case prop_MultiValveGear:
-                {
-                    cJSON_AddNumberToObject(proot, "MutivalveGear", mars_template_ctx->status.MultiValveGear);
-                    break;
-                }
-                
-                default:
-                {
-                    LOGI("mars","now not support this prop report");
-                }
-
-            }
-        }
-    }
-
-    mars_template_ctx->sensor_reportflg = 0;
-}
-
 
 void cook_temp_send_display(int16_t temp)
 {
@@ -1479,6 +1458,7 @@ void IRT102mCallBack(SENSOR_STATUS_ENUM status, float TargetTemper1, float Envir
     // LOGI("mars", "ring_buffer_irt_data: 添加数据(%d)完成,当前数据量=%d", mars_template_ctx->status.ROilTemp, ring_buffer_valid_size(&ring_buffer_irt_data));
 
     cook_assistant_input(INPUT_RIGHT, (unsigned short)mars_template_ctx->status.ROilTemp * 10,(unsigned short)mars_template_ctx->status.REnvTemp * 10);
+    aux_assistant_input(INPUT_RIGHT,(unsigned short)mars_template_ctx->status.ROilTemp * 10,(unsigned short)mars_template_ctx->status.REnvTemp * 10);
     // cook_assistant_input(INPUT_RIGHT, (unsigned short)TargetTemper1 * 10, (unsigned short)EnvirTemper1 * 10);
 	
     prepare_gear_change_task();
@@ -1551,11 +1531,11 @@ void mars_sensor_uartMsgFromSlave(uartmsg_que_t *msg,
             if (mars_template_ctx->status.RadarGear != msg->msg_buf[(*index)+1])
             {
                 LOGI("mars", "解析属性0x%02X: Radar_changed雷达档位变化(%d - %d)", msg->msg_buf[(*index)], mars_template_ctx->status.RadarGear, msg->msg_buf[(*index)+1]);
-                *report_en = true;                        
+                //*report_en = true;                        
                 mars_template_ctx->status.RadarGear = msg->msg_buf[(*index)+1];
             }
 
-            mars_template_ctx->sensor_reportflg |= VALID_BIT(msg->msg_buf[(*index)]);
+            mars_template_ctx->sensor_reportflg |= SVALID_BIT(msg->msg_buf[(*index)]);
             (*index)+=1;
             break;
         }
@@ -1580,7 +1560,7 @@ void mars_sensor_uartMsgFromSlave(uartmsg_que_t *msg,
                 mars_template_ctx->status.RadarSign = msg->msg_buf[(*index)+1];
             }
 
-            mars_template_ctx->sensor_reportflg |= VALID_BIT(msg->msg_buf[(*index)]);
+            mars_template_ctx->sensor_reportflg |= SVALID_BIT(msg->msg_buf[(*index)]);
             (*index)+=1;
             break;
         }
@@ -1589,11 +1569,11 @@ void mars_sensor_uartMsgFromSlave(uartmsg_que_t *msg,
             if (mars_template_ctx->status.MultiValveGear != msg->msg_buf[(*index)+1])
             {
                 LOGI("mars", "解析属性0x%02X: 八段阀火力发生变化(%d - %d)", msg->msg_buf[(*index)], mars_template_ctx->status.MultiValveGear, msg->msg_buf[(*index)+1]);
-                //*report_en = true;                        
+                *report_en = true;                        
                 mars_template_ctx->status.MultiValveGear = msg->msg_buf[(*index)+1];
             }
 
-            mars_template_ctx->sensor_reportflg |= VALID_BIT(msg->msg_buf[(*index)]);
+            mars_template_ctx->sensor_reportflg |= SVALID_BIT(msg->msg_buf[(*index)]);
             (*index)+=1;
             break;
         }
@@ -1606,7 +1586,7 @@ void mars_sensor_uartMsgFromSlave(uartmsg_que_t *msg,
                 mars_template_ctx->status.MultiVaveStatus = msg->msg_buf[(*index)+1];
             }
 
-            mars_template_ctx->sensor_reportflg |= VALID_BIT(msg->msg_buf[(*index)]);
+            mars_template_ctx->sensor_reportflg |= SVALID_BIT(msg->msg_buf[(*index)]);
             (*index)+=1;
             break;
         }
@@ -1616,6 +1596,32 @@ void mars_sensor_uartMsgFromSlave(uartmsg_que_t *msg,
             break;
     }
     return;
+}
+
+void mars_sensor_changeReport(cJSON *proot, mars_template_ctx_t *mars_template_ctx)
+{
+    for (uint8_t index=prop_RadarGear; index<=prop_MultiVaveStatus; ++index)
+    {
+        if (mars_template_ctx->sensor_reportflg & SVALID_BIT(index))
+        {
+            switch(index)
+            {
+                case prop_MultiValveGear:
+                {
+                    cJSON_AddNumberToObject(proot, "MutivalveGear", mars_template_ctx->status.MultiValveGear);
+                    break;
+                }
+                
+                default:
+                {
+                    LOGI("mars","now not support this prop report[0x%02X]",index);
+                }
+
+            }
+        }
+    }
+
+    mars_template_ctx->sensor_reportflg = 0;
 }
 
 #endif

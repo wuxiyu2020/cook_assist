@@ -57,6 +57,8 @@ extern "C"
     void set_dry_fire_switch(unsigned char fire_dry_switch, enum INPUT_DIR input_dir, uint8_t dryburn_user_category);
     void exit_dryburn_status(enum INPUT_DIR input_dir, uint8_t reason);
     void set_fire_status(enum INPUT_DIR input_dir,uint8_t status);
+
+    void aux_assistant_input(enum INPUT_DIR input_dir, unsigned short temp, unsigned short environment_temp);
 #ifdef __cplusplus
 }
 #endif

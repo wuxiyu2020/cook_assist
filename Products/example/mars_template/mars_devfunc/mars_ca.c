@@ -11,6 +11,7 @@
 #include <aos/aos.h>
 
 #include "cook_assistant/cook_wrapper.h"
+#include "cook_assistant/aux_api.h"
 #include "mars_devmgr.h"
 #include "../mars_driver/mars_uartmsg.h"
 
@@ -687,6 +688,8 @@ void mars_ca_init(void)
     register_cook_assist_remind_cb(cook_assist_remind_cb);
     cook_assistant_init(INPUT_RIGHT);
 
+    cook_aux_init(INPUT_RIGHT);
+
     set_smart_smoke_switch(g_user_cook_assist.ZnpySwitch);
     set_hood_min_gear(1);
     // set_temp_control_switch(g_user_cook_assist.RAuxiliarySwitch, INPUT_RIGHT);
@@ -694,6 +697,8 @@ void mars_ca_init(void)
     set_pan_fire_switch(g_user_cook_assist.RMovePotLowHeatSwitch, INPUT_RIGHT);
     set_pan_fire_delayofftime(g_user_cook_assist.RMovePotLowHeatOffTime);
 
+    register_beep_cb();
+    register_multivalve_cb();
 
 
     //一键烹饪回调
@@ -715,4 +720,47 @@ void mars_ca_init(void)
     buf_setmsg[buf_len++] = 0x02;
 
     Mars_uartmsg_send(cmd_set, uart_get_seq_mid(), &buf_setmsg, sizeof(buf_setmsg), 3);
+}
+
+
+/**
+ * @brief: 八段阀火力设置档位
+ * @param {enum INPUT_DIR} input_dir
+ * @return {*}
+ */
+static int Set_MutiValve_gear(enum INPUT_DIR input_dir,int gear)
+{   
+    if(gear > 7 || gear < 0)
+    {
+        LOGI("mars","八段阀不支持此档位设置");
+        return -1;
+    }
+
+    char buf_setmsg[8] = {0};
+    int buf_len = 0;
+    buf_setmsg[buf_len++] = prop_MultiValveGear;
+    buf_setmsg[buf_len++] = gear;
+    Mars_uartmsg_send(cmd_set,uart_get_seq_mid(),buf_setmsg,buf_len,3);
+    return 0;
+}
+
+
+/**
+ * @brief: 设置蜂鸣器警报模式
+ * @return {*}
+ */
+static int set_beep_type(int beep_type)
+{
+    if(beep_type < 0 || beep_type > 4)
+    {
+        LOGI("mars","不支持的蜂鸣器命令类型");
+        return -1;
+    }
+
+    char buf_setmsg[8] = {0};
+    int buf_len = 0;
+    buf_setmsg[buf_len++] = prop_Beer;
+    buf_setmsg[buf_len++] = beep_type;
+    Mars_uartmsg_send(cmd_set,uart_get_seq_mid(),buf_setmsg,buf_len,3);
+    return 0;
 }
