@@ -14,6 +14,7 @@
 #include "cook_assistant/aux_api.h"
 #include "mars_devmgr.h"
 #include "../mars_driver/mars_uartmsg.h"
+#include "mars_ca.h"
 
 #define log_module_name "cook_assistant"
 #define log_debug(...) LOGD(log_module_name, ##__VA_ARGS__)
@@ -27,19 +28,40 @@
 #define DRY_BURN_KV         "dryburn_state"
 #define AUXILIARY_KV        "auxiliary_temp"
 
+static int Set_MutiValve_gear(enum INPUT_DIR input_dir,int gear);
+static int set_beep_type(int beep_type);
+static int aux_set_remaintime(unsigned char remaintime);
+static int aux_set_exit_cb(int type);
 
 extern mars_cook_assist_t  g_user_cook_assist;
 static int cook_assistant_close_fire(enum INPUT_DIR input_dir)
 {
     uint8_t buf_setmsg[10] = {0};
     uint16_t buf_len = 0;
+    mars_template_ctx_t *mars_template_ctx = mars_dm_get_ctx();
     
     buf_setmsg[buf_len++] = prop_HoodFireTurnOff;  //灶具关火
     if (input_dir == INPUT_RIGHT){
         buf_setmsg[buf_len++] = 0x01;
     }
 
+    //aux暂时对烟机照明取反操作,烟机连续变化两次表示算法主动关火
+    buf_setmsg[buf_len++] = prop_HoodLight;
+    buf_setmsg[buf_len++] = !mars_template_ctx->status.HoodLight;
+
     Mars_uartmsg_send(cmd_set, uart_get_seq_mid(), buf_setmsg, buf_len, 3);
+
+    aos_msleep(1500);
+
+    memset(buf_setmsg, 0, sizeof(buf_setmsg));
+    buf_len = 0;
+    //aux暂时对烟机照明取反操作
+    buf_setmsg[buf_len++] = prop_HoodLight;
+    buf_setmsg[buf_len++] = !mars_template_ctx->status.HoodLight;
+
+    Mars_uartmsg_send(cmd_set, uart_get_seq_mid(), buf_setmsg, buf_len, 3);
+
+
     return 0;
 }
 
@@ -697,8 +719,11 @@ void mars_ca_init(void)
     set_pan_fire_switch(g_user_cook_assist.RMovePotLowHeatSwitch, INPUT_RIGHT);
     set_pan_fire_delayofftime(g_user_cook_assist.RMovePotLowHeatOffTime);
 
-    register_beep_cb();
-    register_multivalve_cb();
+    register_beep_cb(set_beep_type);                            //控制蜂鸣器的回调函数
+    register_multivalve_cb(Set_MutiValve_gear);                 //控制八段阀的回调函数
+    register_auxclose_fire_cb(cook_assistant_close_fire);
+    register_auxcount_down(aux_set_remaintime);                 //设置辅助烹饪的剩余时间
+    register_aux_exit_cb(aux_set_exit_cb);
 
 
     //一键烹饪回调
@@ -736,6 +761,7 @@ static int Set_MutiValve_gear(enum INPUT_DIR input_dir,int gear)
         return -1;
     }
 
+    LOGI("mars","回调函数中设置八段阀:%d",gear);
     char buf_setmsg[8] = {0};
     int buf_len = 0;
     buf_setmsg[buf_len++] = prop_MultiValveGear;
@@ -756,11 +782,57 @@ static int set_beep_type(int beep_type)
         LOGI("mars","不支持的蜂鸣器命令类型");
         return -1;
     }
-
-    char buf_setmsg[8] = {0};
+    LOGI("mars","回调函数中设置蜂鸣器:%d",beep_type);
+    char buf_setmsg[10] = {0};
     int buf_len = 0;
     buf_setmsg[buf_len++] = prop_Beer;
     buf_setmsg[buf_len++] = beep_type;
+
+    mars_template_ctx_t *mars_template_ctx = mars_dm_get_ctx();
+    //aux暂时添加对烟机照明的取反操作
+    buf_setmsg[buf_len++] = prop_HoodLight;
+    buf_setmsg[buf_len++] = !mars_template_ctx->status.HoodLight;
     Mars_uartmsg_send(cmd_set,uart_get_seq_mid(),buf_setmsg,buf_len,3);
     return 0;
 }
+
+
+/**
+ * @brief: 辅助烹饪煮模式
+ * @param {unsigned char} remaintime
+ * @return {*}
+ */
+static int aux_set_remaintime(unsigned char remaintime)
+{
+    mars_template_ctx_t *mars_template_ctx = mars_dm_get_ctx();
+
+    LOGI("mars","回调函数中设置剩余运行时间:%d",remaintime);
+    char buf_setmsg[10] = {0};
+    int buf_len = 0;
+    buf_setmsg[buf_len++] = prop_AuxCookLeftTime;
+    buf_setmsg[buf_len++] = remaintime;
+    Mars_uartmsg_send(cmd_set,uart_get_seq_mid(),buf_setmsg,buf_len,3);
+    return 0;
+}
+
+
+/**
+ * @brief: 通知电控辅助烹饪的退出状态，头部显示板用于取消显示
+ * @return {*}
+ */
+static int aux_set_exit_cb(int type)
+{
+    if(type > 2 || type < 0)
+    {
+        LOGI("mars","ERROR!error setting about exit type");
+    }
+
+    char buf_setmsg[10] = {0};
+    int buf_len = 0;
+    buf_setmsg[buf_len++] = prop_AuxCookStatus;
+    buf_setmsg[buf_len++] = type;
+    Mars_uartmsg_send(cmd_set,uart_get_seq_mid(),buf_setmsg,buf_len,3);
+    return 0;    
+}   
+
+
