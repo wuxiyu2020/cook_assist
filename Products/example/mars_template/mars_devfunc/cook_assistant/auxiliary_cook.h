@@ -3,7 +3,7 @@
  * @Author       : zhouxc
  * @Date         : 2024-10-22 13:40:14
  * @LastEditors  : zhouxc
- * @LastEditTime : 2024-10-25 16:57:00
+ * @LastEditTime : 2024-10-31 15:07:57
  * @FilePath     : /et70-ca3/Products/example/mars_template/mars_devfunc/cook_assistant/auxiliary_cook.h
  */
 #ifndef _AUXILIARY_COOK_H
@@ -29,6 +29,14 @@ enum aux_exit_type
     AUX_ERROR_EXIT
 };
 
+enum aux_boile_type
+{
+    BOIL_NOT_SET,       //未设置煮类型
+    BOIL_0_8,           //0 < 煮时间 < 8min
+    BOIL_8_20,          //8min <= 煮时间 < 20min,
+    BOIL_20_MAX         //煮时间 >= 20min
+};
+
 typedef struct
 {
     unsigned char ignition_switch;                  //点火开关
@@ -36,6 +44,11 @@ typedef struct
     unsigned char aux_type;                         //辅助烹饪模式
     unsigned int aux_set_time;                      //辅助烹饪煮模式设置时间
     unsigned int aux_set_temp;                      //辅助烹饪炸模式设置温度
+    
+    unsigned char aux_multivalve_gear;              //当前八段阀的档位
+    unsigned char aux_aim_multivalve_gear;          //目标八段阀的档位
+
+    unsigned char aux_boil_type;                    //煮模式的类型
     unsigned int aux_remain_time;                   //辅助烹饪煮模式剩余时间
     unsigned char aux_boil_counttime_flag;          //倒计时标志位 0：不进行倒计时 1：进行倒计时
 
@@ -77,6 +90,8 @@ typedef struct
 
 
 aux_handle_t *get_aux_handle(enum INPUT_DIR input_dir);
+void auxiliary_cooking_switch(int aux_switch, int cook_type, int set_time, int set_temp);
+void aux_assistant_input(enum INPUT_DIR input_dir, unsigned short temp, unsigned short environment_temp);
 void register_beep_cb(int(*cb)(int beep_type));
 void register_multivalve_cb(int(*cb)(enum INPUT_DIR input_dir, int gear));
 void register_auxclose_fire_cb(int (*cb)(enum INPUT_DIR input_dir));

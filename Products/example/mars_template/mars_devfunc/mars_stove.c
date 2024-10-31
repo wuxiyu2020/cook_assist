@@ -1571,6 +1571,9 @@ void mars_sensor_uartMsgFromSlave(uartmsg_que_t *msg,
                 LOGI("mars", "解析属性0x%02X: 八段阀火力发生变化(%d - %d)", msg->msg_buf[(*index)], mars_template_ctx->status.MultiValveGear, msg->msg_buf[(*index)+1]);
                 *report_en = true;                        
                 mars_template_ctx->status.MultiValveGear = msg->msg_buf[(*index)+1];
+                
+                //通知辅助烹饪当前八段阀档位
+                set_multivalve_gear(mars_template_ctx->status.MultiValveGear, 1);
             }
 
             mars_template_ctx->sensor_reportflg |= SVALID_BIT(msg->msg_buf[(*index)]);
