@@ -3,7 +3,7 @@
  * @Author       : zhouxc
  * @Date         : 2024-10-22 13:40:14
  * @LastEditors  : zhouxc
- * @LastEditTime : 2024-10-31 15:07:57
+ * @LastEditTime : 2024-11-06 17:20:19
  * @FilePath     : /et70-ca3/Products/example/mars_template/mars_devfunc/cook_assistant/auxiliary_cook.h
  */
 #ifndef _AUXILIARY_COOK_H
@@ -47,36 +47,32 @@ typedef struct
     
     unsigned char aux_multivalve_gear;              //当前八段阀的档位
     unsigned char aux_aim_multivalve_gear;          //目标八段阀的档位
-
-    unsigned char aux_boil_type;                    //煮模式的类型
-    unsigned int aux_remain_time;                   //辅助烹饪煮模式剩余时间
-    unsigned char aux_boil_counttime_flag;          //倒计时标志位 0：不进行倒计时 1：进行倒计时
-
     unsigned int aux_total_tick;                    //进入辅助烹饪的总时间
-    unsigned int current_average;                   //当前的平均温度
-
-    unsigned char enter_boil_time;                  //进入水开的次数，初始为0
-    boil_tendency_t boil_current_tendency;          //煮模式当前状态趋势
-    unsigned int boil_current_status_tick;          //煮模式当前趋势计时
-
-    boil_tendency_t boil_next_tendency;             //煮模式待切换的下一个状态
-    unsigned int boil_next_status_tick;             //煮模式待切换趋势计时
-
+    unsigned int current_average_temp;                   //当前的平均温度
     unsigned short now_temp;                        //当前温度    
     unsigned short temp_array[ARRAY_DATA_SIZE];     //温度数组
     unsigned char temp_size;                        //温度数组中的数据量
-
     unsigned short average_temp_array[ARRAY_DATA_SIZE]; //存储平均温度的数组
     unsigned char average_temp_size;                    //平均温度数组中的温度数量
 
+    /*煮模式相关参数*/
+    unsigned char aux_boil_type;                    //煮模式的类型
+    unsigned int aux_remain_time;                   //辅助烹饪煮模式剩余时间
+    unsigned char aux_boil_counttime_flag;          //倒计时标志位 0：不进行倒计时 1：进行倒计时
+    unsigned char enter_boil_time;                  //进入水开的次数，初始为0
+    boil_tendency_t boil_current_tendency;          //煮模式当前状态趋势
+    unsigned int boil_current_status_tick;          //煮模式当前趋势计时
+    boil_tendency_t boil_next_tendency;             //煮模式待切换的下一个状态
+    unsigned int boil_next_status_tick;             //煮模式待切换趋势计时
+
     // unsigned char boil_mode_rise_step;              //煮模式加热阶段标志位
     // unsigned int boil_mode_tick;                    //煮模式加热阶段时间计时
-
     // unsigned char boil_mode_gentle_step;            //煮模式平缓阶段标志位
     // unsigned int boil_mode_gentle_tick;             //煮模式平缓阶段时间
-
     // unsigned char boil_mode_boil_step;              //煮模式水开标志位
 
+    /*炸模式相关参数*/
+    char fry_step;                              //炸模式当前所处的步骤，0：未启动，1：热锅阶段，2：热油控温阶段，3：放入食材后控温阶段
 
 } aux_handle_t;
 
