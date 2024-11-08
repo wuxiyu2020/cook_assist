@@ -205,8 +205,7 @@ void cook_aux_init(enum INPUT_DIR input_dir)
  * @return {*}
  */
 void aux_temp_save(aux_handle_t *aux_handle,unsigned short temp)
-{
-    
+{    
     //首次未存满的时候，按顺序存入
     if(aux_handle->temp_size < ARRAY_DATA_SIZE)
     {
@@ -216,7 +215,7 @@ void aux_temp_save(aux_handle_t *aux_handle,unsigned short temp)
     //存满之后，全部向前移动一位，存入最后一位
     else if(aux_handle->temp_size == ARRAY_DATA_SIZE)
     {
-        for(int i = 0; i <= ARRAY_DATA_SIZE - 2; i++)
+        for(int i = 0; i < ARRAY_DATA_SIZE - 1; i++)
         {
             aux_handle->temp_array[i] = aux_handle->temp_array[i+1];
         }
@@ -241,7 +240,7 @@ void aux_temp_save(aux_handle_t *aux_handle,unsigned short temp)
     aux_handle->current_average_temp = average_temp;
 
     //每10个数据计算法一个平均值，单个数据时间间隔0.25s，即2.5s取一个平均值
-    if(aux_handle->aux_total_tick % 10 == 0)
+    if(aux_handle->aux_total_tick % ARRAY_DATA_SIZE == 0)
     {
         if(aux_handle->average_temp_size < ARRAY_DATA_SIZE)
         {
@@ -250,7 +249,7 @@ void aux_temp_save(aux_handle_t *aux_handle,unsigned short temp)
         }
         else if(aux_handle->average_temp_size == ARRAY_DATA_SIZE)
         {
-            for(int i = 0; i <= ARRAY_DATA_SIZE - 2; i++)
+            for(int i = 0; i < ARRAY_DATA_SIZE - 1; i++)
             {
                 aux_handle->average_temp_array[i] = aux_handle->average_temp_array[i+1];
             }
@@ -876,6 +875,8 @@ void aux_cook_reset(aux_handle_t *aux_handle)
 void aux_assistant_input(enum INPUT_DIR input_dir, unsigned short temp, unsigned short environment_temp)
 {
     aux_handle_t *aux_handle = get_aux_handle(input_dir);
+
+    aux_handle->aux_total_tick++;
     aux_temp_save(aux_handle, temp);
     printf("present target temp:%d,environment temp:%d\r\n",temp,environment_temp);
 
@@ -885,7 +886,7 @@ void aux_assistant_input(enum INPUT_DIR input_dir, unsigned short temp, unsigned
         return;
     }
 
-    aux_handle->aux_total_tick++;
+    //aux_handle->aux_total_tick++;
 
     // if(aux_handle->aux_total_tick >= MAX_FIRE_TIME)
     // {
