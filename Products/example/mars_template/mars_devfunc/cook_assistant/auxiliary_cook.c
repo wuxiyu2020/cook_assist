@@ -3,7 +3,7 @@
  * @Author       : zhouxc
  * @Date         : 2024-10-21 10:37:25
  * @LastEditors  : zhouxc
- * @LastEditTime : 2024-11-08 14:52:53
+ * @LastEditTime : 2024-11-08 17:23:22
  * @FilePath     : /et70-ca3/Products/example/mars_template/mars_devfunc/cook_assistant/auxiliary_cook.c
  */
 
@@ -761,8 +761,8 @@ void mode_fry_func(aux_handle_t *aux_handle)
         for(int i = 0; i < ARRAY_DATA_SIZE - 1; i++)
         {
             //相邻的温度，新的温度大于旧的温度，新的温度大于旧的温度的幅度小于等于2度
-            if(aux_handle->average_temp_array[i + 1] >= aux_handle->average_temp_array[i] && \
-            aux_handle->average_temp_array[i + 1] - aux_handle->average_temp_array[i] <= 20)
+            if(aux_handle->temp_array[i + 1] >= aux_handle->temp_array[i] && \
+            aux_handle->temp_array[i + 1] - aux_handle->temp_array[i] <= 20)
             {
                 gentle_count++;
             }
@@ -772,13 +772,13 @@ void mode_fry_func(aux_handle_t *aux_handle)
         if(gentle_count >= 9)
         {
             //最新的温度比最早的温度高5度或以上
-            rise_count += aux_handle->average_temp_array[0] + 50 <= aux_handle->average_temp_array[ARRAY_DATA_SIZE - 1];
+            rise_count += aux_handle->temp_array[0] + 50 <= aux_handle->temp_array[ARRAY_DATA_SIZE - 1];
             //间隔四个温度之间的温度上升幅度大于等于2度
-            rise_count += aux_handle->average_temp_array[0] + 20 <= aux_handle->average_temp_array[5];
-            rise_count += aux_handle->average_temp_array[1] + 20 <= aux_handle->average_temp_array[6];
-            rise_count += aux_handle->average_temp_array[2] + 20 <= aux_handle->average_temp_array[7];
-            rise_count += aux_handle->average_temp_array[3] + 20 <= aux_handle->average_temp_array[8];
-            rise_count += aux_handle->average_temp_array[4] + 20 <= aux_handle->average_temp_array[9];   
+            rise_count += aux_handle->temp_array[0] + 20 <= aux_handle->temp_array[5];
+            rise_count += aux_handle->temp_array[1] + 20 <= aux_handle->temp_array[6];
+            rise_count += aux_handle->temp_array[2] + 20 <= aux_handle->temp_array[7];
+            rise_count += aux_handle->temp_array[3] + 20 <= aux_handle->temp_array[8];
+            rise_count += aux_handle->temp_array[4] + 20 <= aux_handle->temp_array[9];   
         }
 
         if(aux_handle->aux_total_tick <= 4 * 5)
@@ -830,7 +830,7 @@ void mode_fry_func(aux_handle_t *aux_handle)
     }
 
     //处于热锅阶段，进行热锅阶段温控逻辑
-    if(aux_handle->fry_step == 1)
+    if(aux_handle->fry_step == 1 && gentle_flag == true)
     {
         if(aux_handle->current_average_temp >= 200 * 10 && aux_handle->current_average_temp < 220 * 10) 
         {
@@ -846,7 +846,7 @@ void mode_fry_func(aux_handle_t *aux_handle)
         }
     }
 
-    //已经检测到热锅之后或者已经超过了30s,开始判断是否放入油或食材
+    //已经检测到热锅之后或者已经超过了30s,开始判断是否放入油或食材;即默认热锅最多30s
     if(aux_handle->fry_step == 1  || aux_handle->aux_total_tick > 30 * 4)
     {
         //0.25s相邻的两个温度发生大于5度的波动
@@ -899,7 +899,23 @@ void mode_fry_func(aux_handle_t *aux_handle)
 
     if(aux_handle->fry_step == 3 && gentle_flag == true)
     {
-        
+        if(aux_handle->fry_last_change_gear_tick >= 10 * 4 && aux_handle->current_average_temp > aux_handle->aux_set_temp * 10 + 10 * 10)
+        {
+            //温度高于目标温度10摄氏度以上，减档操作
+            unsigned char gear = aux_handle->aux_multivalve_gear - 1;
+            aux_handle->fry_last_gear_average_temp = aux_handle->current_average_temp;
+            change_multivalve_gear(gear, INPUT_RIGHT);
+            aux_handle->fry_last_change_gear_tick = 0;
+
+        }
+        else if(aux_handle->fry_last_change_gear_tick >= 10 * 4 && aux_handle->current_average_temp < aux_handle->aux_set_temp * 10 - 10 * 10)
+        {
+            //温度高于目标温度10摄氏度以上，加档操作
+            unsigned char gear = aux_handle->aux_multivalve_gear + 1;
+            aux_handle->fry_last_gear_average_temp = aux_handle->current_average_temp;
+            change_multivalve_gear(gear, INPUT_RIGHT);
+            aux_handle->fry_last_change_gear_tick = 0;
+        }
     }
 
     return;
