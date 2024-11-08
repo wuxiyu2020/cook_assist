@@ -3,7 +3,7 @@
  * @Author       : zhouxc
  * @Date         : 2024-10-22 13:40:14
  * @LastEditors  : zhouxc
- * @LastEditTime : 2024-11-06 17:20:19
+ * @LastEditTime : 2024-11-08 14:45:20
  * @FilePath     : /et70-ca3/Products/example/mars_template/mars_devfunc/cook_assistant/auxiliary_cook.h
  */
 #ifndef _AUXILIARY_COOK_H
@@ -72,8 +72,11 @@ typedef struct
     // unsigned char boil_mode_boil_step;              //煮模式水开标志位
 
     /*炸模式相关参数*/
-    char fry_step;                              //炸模式当前所处的步骤，0：未启动，1：热锅阶段，2：热油控温阶段，3：放入食材后控温阶段
+    char fry_step;                              //炸模式当前所处的步骤，0：未启动，1：热锅阶段，2：热油阶段，3：控温阶段
+    unsigned int fry_last_change_gear_tick;     //最近一次切换档位经过的tick
+    unsigned int fry_last_gear_average_temp;    //上一次调档前的平均温度
 
+    
 } aux_handle_t;
 
 // typedef enum AUXCOOKMODE

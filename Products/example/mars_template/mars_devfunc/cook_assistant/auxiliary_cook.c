@@ -3,7 +3,7 @@
  * @Author       : zhouxc
  * @Date         : 2024-10-21 10:37:25
  * @LastEditors  : zhouxc
- * @LastEditTime : 2024-11-07 14:41:21
+ * @LastEditTime : 2024-11-08 14:52:53
  * @FilePath     : /et70-ca3/Products/example/mars_template/mars_devfunc/cook_assistant/auxiliary_cook.c
  */
 
@@ -185,6 +185,9 @@ void cook_aux_reinit(enum INPUT_DIR input_dir)
     aux_handle->enter_boil_time = 0;
     aux_handle->aux_boil_counttime_flag = 0;
     aux_handle->aux_boil_type = 0;
+
+    //煮模式重置
+    aux_handle->fry_last_change_gear_tick = 0;
 }
 
 /**
@@ -741,6 +744,7 @@ void mode_fry_func(aux_handle_t *aux_handle)
     static unsigned int enter_mode_temp = 0;
     static bool gentle_flag = false;
     printf("enter func:%s\r\n",__func__);
+    aux_handle->fry_last_change_gear_tick++;
 
     if(aux_handle->aux_total_tick == 1)
     {
@@ -748,11 +752,12 @@ void mode_fry_func(aux_handle_t *aux_handle)
         enter_mode_temp = aux_handle->current_average_temp;
         aux_handle->fry_step = 0;               //重置炸场景步骤
     }
-
+    
     //进入炸模式后，如果当前步骤还未确定，且处于进入模式的4s-30s内，则判断是否处于热锅状态
-    if(aux_handle->fry_step == 0 && aux_handle->aux_total_tick > 4 * 5 && aux_handle->aux_total_tick < 4 * 30)
+    if(aux_handle->fry_step == 0)
     {
         unsigned char gentle_count = 0;
+        unsigned char rise_count = 0;
         //首先判断10组温度没有发生大的跳变，处于较为稳定的状态
         for(int i = 0; i < ARRAY_DATA_SIZE - 1; i++)
         {
@@ -767,8 +772,6 @@ void mode_fry_func(aux_handle_t *aux_handle)
         //温度处于较为平稳的阶段，才能判断是否处于稳定上升的阶段
         if(gentle_count >= 9)
         {
-            unsigned char rise_count = 0;
-
             //最新的温度比最早的温度高5度或以上
             rise_count += aux_handle->average_temp_array[0] + 50 <= aux_handle->average_temp_array[ARRAY_DATA_SIZE - 1];
             //间隔四个温度之间的温度上升幅度大于等于2度
@@ -776,39 +779,76 @@ void mode_fry_func(aux_handle_t *aux_handle)
             rise_count += aux_handle->average_temp_array[1] + 20 <= aux_handle->average_temp_array[6];
             rise_count += aux_handle->average_temp_array[2] + 20 <= aux_handle->average_temp_array[7];
             rise_count += aux_handle->average_temp_array[3] + 20 <= aux_handle->average_temp_array[8];
-            rise_count += aux_handle->average_temp_array[4] + 20 <= aux_handle->average_temp_array[9];
+            rise_count += aux_handle->average_temp_array[4] + 20 <= aux_handle->average_temp_array[9];   
+        }
 
+        if(aux_handle->aux_total_tick <= 4 * 5)
+        {
+            printf("初始阶段，5s内不做处理\r\n");
+        }
+        else if(aux_handle->aux_total_tick > 4 * 5 && aux_handle->aux_total_tick <= 4 * 30)
+        {
             //判断是否处于热锅阶段
             if(rise_count >= 6)
             {
+                LOG_GRE("检测到处于热锅阶段");
                 aux_handle->fry_step = 1;
+            }
+            else if(rise_count < 2)
+            {
+                LOG_GRE("检测到处于热油阶段");
+                aux_handle->fry_step = 2;
+            }
+            else        //如果都不满足暂时不判断
+            {
+                //如果30s即将过去仍然判断不到是热油还是热锅，直接默认为热油阶段，准备开始控温逻辑
+                if(aux_handle->aux_total_tick == 4 * 30)
+                {
+                    LOG_GRE("30s没有检测到处于何种阶段，直接设定为热油阶段");
+                    aux_handle->fry_step = 2;
+                }
             }
         }
     }
 
+    int gentle_count = 0;
     //判断是否处于温度较稳定的平缓状态
     for(int i = 0; i < ARRAY_DATA_SIZE - 1; i++)
     {
-        aux_handle->average_temp_array[i];
+        if(abs(aux_handle->average_temp_array[i] - aux_handle->average_temp_array[i+1]) <= 20)
+        {
+            gentle_count++;
+        }
     }
 
+    if(gentle_count >= 9)
+    {
+        gentle_flag = true;
+    }
+    else
+    {
+        gentle_flag = false;
+    }
 
-    //处于热锅阶段
+    //处于热锅阶段，进行热锅阶段温控逻辑
     if(aux_handle->fry_step == 1)
     {
         if(aux_handle->current_average_temp >= 200 * 10 && aux_handle->current_average_temp < 220 * 10) 
         {
             change_multivalve_gear(0x04, INPUT_RIGHT);
+            aux_handle->fry_last_change_gear_tick = 0;
+
             beep_control_cb(0x03);          //提醒用户加油    
         }
         else if(aux_handle->current_average_temp > 220 * 10)
         {
             change_multivalve_gear(0x07, INPUT_RIGHT); 
-        }      
+            aux_handle->fry_last_change_gear_tick = 0;
+        }
     }
 
     //已经检测到热锅之后或者已经超过了30s,开始判断是否放入油或食材
-    if(aux_handle->fry_step == 1  || aux_handle->aux_total_tick >= 30 * 4)
+    if(aux_handle->fry_step == 1  || aux_handle->aux_total_tick > 30 * 4)
     {
         //0.25s相邻的两个温度发生大于5度的波动
         if(abs(aux_handle->average_temp_array[ARRAY_DATA_SIZE - 1] - aux_handle->average_temp_array[ARRAY_DATA_SIZE - 2]) > 50)
@@ -818,17 +858,50 @@ void mode_fry_func(aux_handle_t *aux_handle)
         }
     }
 
-    // //进入控温逻辑，当温度处于跳动状态的时候无法进行控温操作
-    // if(aux_handle->fry_step == 2)
-    // {
-    //     if(aux_handle->current_average_temp + 50 * 10 <= aux_handle->aux_set_temp * 10)
-    //     {
-    //         if(aux_handle->aux_multivalve_gear != 0)
-    //         {
-    //             change_multivalve_gear(0x01, INPUT_RIGHT);      //设置为最大档加热
-    //         }
-    //     }
-    // }
+    //进入控温逻辑，当温度处于跳动状态的时候无法进行控温操作
+    if(aux_handle->fry_step == 2 && gentle_flag == true)
+    {
+        if(aux_handle->current_average_temp <= aux_handle->aux_set_temp * 10 - 50 * 10)
+        {
+            if(aux_handle->aux_multivalve_gear != 0 && aux_handle->fry_last_change_gear_tick >= 10 * 4)
+            {
+                aux_handle->fry_last_gear_average_temp = aux_handle->current_average_temp;      //记录调档之前的平均温度
+
+                change_multivalve_gear(0x00, INPUT_RIGHT);                                      //设置为最大档加热
+                aux_handle->fry_last_change_gear_tick = 0;
+            }
+        }
+        /*暂时注释掉此逻辑，中间过渡档位过多会出现问题。如果调固定档之后出现了温度下降，则需要返回再次判断一次。
+        例如：假设一大锅东西必须使用1档才能维持在目标温度，在距离目标温度30度的时候调为了2档，接着温度下降，下降到距离目标温度50度的时候，
+        再次调整为0档。随后距离目标温度30度的时候再次调整为2档，始终无法跳到1档去维持这个温度。
+        因此，在初始档位靠近目标温度之后，只调整一次档位，档位取值为较为中间的档位3档，随后进入动态控温逻辑*/
+        // else if(aux_handle->current_average_temp <= aux_handle->aux_set_temp * 10 - 30 * 10)
+        // {
+        //     if(aux_handle->aux_multivalve_gear != 0x02 && aux_handle->fry_last_change_gear_tick >= 10 * 4)
+        //     {
+        //         aux_handle->fry_last_gear_average_temp = aux_handle->current_average_temp;
+                
+        //         change_multivalve_gear(0x02, INPUT_RIGHT);
+        //         aux_handle->fry_last_change_gear_tick = 0;
+        //     }
+        // }
+        else if(aux_handle->current_average_temp <= aux_handle->aux_set_temp * 10 - 10 * 15)
+        {
+            if(aux_handle->aux_multivalve_gear != 0x03 && aux_handle->fry_last_change_gear_tick >= 10 * 4)
+            {
+                aux_handle->fry_last_gear_average_temp = aux_handle->current_average_temp;
+
+                change_multivalve_gear(0x03, INPUT_RIGHT);
+                aux_handle->fry_last_change_gear_tick = 0;
+                aux_handle->fry_step = 3;
+            }
+        }
+    }
+
+    if(aux_handle->fry_step == 3 && gentle_flag == true)
+    {
+        
+    }
 
     return;
 }
