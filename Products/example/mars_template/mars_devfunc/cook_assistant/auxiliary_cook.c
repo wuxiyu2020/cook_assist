@@ -3,7 +3,7 @@
  * @Author       : zhouxc
  * @Date         : 2024-10-21 10:37:25
  * @LastEditors  : zhouxc
- * @LastEditTime : 2024-11-08 17:23:22
+ * @LastEditTime : 2024-11-11 18:05:49
  * @FilePath     : /et70-ca3/Products/example/mars_template/mars_devfunc/cook_assistant/auxiliary_cook.c
  */
 
@@ -47,26 +47,26 @@ void register_multivalve_cb(int(*cb)(enum INPUT_DIR input_dir, int gear))
  */
 int change_multivalve_gear(unsigned char gear, enum INPUT_DIR input_dir)
 {
-    printf("enter:%s\r\n",__func__);
+    LOG_default("enter:%s\r\n",__func__);
 
     aux_handle_t *aux_handle = get_aux_handle(input_dir);
     if(gear > 7 || gear < 0)
     {
-        printf("multivalve not support this gear\r\n");
+        LOG_default("multivalve not support this gear\r\n");
         return -1;
     }
 
     //如果设置档位和当前档位一致，直接返回
     if(aux_handle->aux_multivalve_gear == gear)
     {
-        printf("aim gear is now gear,not response\r\n");
+        LOG_default("aim gear is now gear,not response\r\n");
         return -1;
     }
 
     //判断尚未到达目标档位，不进行档位调整
     if(aux_handle->aux_multivalve_gear != aux_handle->aux_aim_multivalve_gear)
     {   
-        printf("multivalve is moving,this change not reponse\r\n");
+        LOG_default("multivalve is moving,this change not reponse\r\n");
         return -1;
     }
 
@@ -141,7 +141,7 @@ void auxiliary_cooking_switch(int aux_switch, int cook_type, int set_time, int s
     aux_handle->aux_set_time = set_time;
     aux_handle->aux_set_temp = set_temp;
     aux_handle->aux_remain_time = set_time * 60 * AUX_DATA_HZ;
-    printf("aux seting:==============================\r\n\
+    LOG_default("aux seting:==============================\r\n\
     aux_switch:%d,aux_mode:%s aux_set_time:%d,aux_set_temp:%d\r\n",\
     aux_handle->aux_switch, aux_mode[aux_handle->aux_type - 1], aux_handle->aux_set_time, aux_handle->aux_set_temp);
 
@@ -226,20 +226,20 @@ void aux_temp_save(aux_handle_t *aux_handle,unsigned short temp)
     }
     else if(aux_handle->temp_size > ARRAY_DATA_SIZE)
     {
-        printf("aux deal temp data error!!!\r\n");
+        LOG_default("aux deal temp data error!!!\r\n");
     }
 
     //打印单个温度数组
-    printf("aux temp array is:");
+    LOG_default("aux temp array is:");
     unsigned int average_temp = 0;
     for(int i = 0; i < aux_handle->temp_size; i++)
     {
-        printf("%d ",aux_handle->temp_array[i]);
+        LOG_default("%d ",aux_handle->temp_array[i]);
         average_temp += aux_handle->temp_array[i];
     }
-    printf("\r\n");
+    LOG_default("\r\n");
     average_temp /= aux_handle->temp_size;
-    printf("present average temp is:%d\r\n",average_temp);
+    LOG_default("present average temp is:%d\r\n",average_temp);
     aux_handle->current_average_temp = average_temp;
 
     //每10个数据计算法一个平均值，单个数据时间间隔0.25s，即2.5s取一个平均值
@@ -260,17 +260,17 @@ void aux_temp_save(aux_handle_t *aux_handle,unsigned short temp)
         }
         else if(aux_handle->average_temp_size > ARRAY_DATA_SIZE)
         {
-            printf("aux deal average temp data error!!!\r\n");
+            LOG_default("aux deal average temp data error!!!\r\n");
         }
     }
 
     //打印平均温度数组
-    printf("=============================================\r\naux average temp array is:");
+    LOG_default("=============================================\r\naux average temp array is:");
     for(int i = 0; i < aux_handle->average_temp_size; i++)
     {
-        printf("%d ",aux_handle->average_temp_array[i]);
+        LOG_default("%d ",aux_handle->average_temp_array[i]);
     }
-    printf("\r\n=============================================\r\n");
+    LOG_default("\r\n=============================================\r\n");
 
 }
 
@@ -282,12 +282,12 @@ void aux_temp_save(aux_handle_t *aux_handle,unsigned short temp)
  */
 int judge_water_boil(aux_handle_t *aux_handle)
 {
-    printf("enter boil judge\r\n");
+    LOG_default("enter boil judge\r\n");
     //煮模式中的保底时间到，尚未发生过水开场景，保底认为水开
     if(aux_handle->aux_total_tick >= BOIL_MODE_MAX_HEAT_TIME && aux_handle->aux_type == MODE_ZHU &&\
      aux_handle->enter_boil_time < 1)
     {
-        printf("煮模式保底时间到认为已经是水开\r\n");
+        LOG_default("煮模式保底时间到认为已经是水开\r\n");
         return 1;
     }
 
@@ -315,7 +315,7 @@ int judge_water_boil(aux_handle_t *aux_handle)
 
         if(rise_count1 >= 7 || rise_count2 >= 3)
         {
-            printf("认为仍然处于上升状态\r\n");
+            LOG_default("认为仍然处于上升状态\r\n");
             return 0;
         }
 
@@ -355,7 +355,7 @@ void boil_status_change(aux_handle_t *aux_handle)
     {
         if(aux_handle->boil_next_status_tick > 4 * 5)
         {
-            printf("[change_status],to idle\r\n");
+            LOG_default("[change_status],to idle\r\n");
             aux_handle->boil_current_tendency = aux_handle->boil_next_tendency;
             aux_handle->boil_current_status_tick = 0;
             aux_handle->boil_next_status_tick = 0;
@@ -365,7 +365,7 @@ void boil_status_change(aux_handle_t *aux_handle)
     {
         if(aux_handle->boil_next_status_tick > 4 * 6)
         {
-            printf("[change_status],rise to %s\r\n",boil_status_info[aux_handle->boil_next_tendency]);
+            LOG_default("[change_status],rise to %s\r\n",boil_status_info[aux_handle->boil_next_tendency]);
             aux_handle->boil_current_tendency = aux_handle->boil_next_tendency;
             aux_handle->boil_current_status_tick = 0;
             aux_handle->boil_next_status_tick = 0;
@@ -398,7 +398,7 @@ void boil_status_change(aux_handle_t *aux_handle)
     {
         if(aux_handle->boil_next_tendency == GENTLE)
         {
-            printf("要切换的是gentle，仍然保持boil状态");
+            LOG_default("要切换的是gentle，仍然保持boil状态");
         }
         //status change: BOIL->DOWN
         else if(aux_handle->boil_next_tendency == DOWN)
@@ -406,12 +406,12 @@ void boil_status_change(aux_handle_t *aux_handle)
             // //已经发生过水开的情况了
             // if(aux_handle->aux_boil_type == BOIL_20_MAX && aux_handle->aux_total_tick >= 10 * 60 * INPUT_DATA_HZ)
             // {
-            //     printf("总时间大于20min，处于10Min后，八段阀切换为大火3档\r\n");
+            //     LOG_default("总时间大于20min，处于10Min后，八段阀切换为大火3档\r\n");
             //     change_multivalve_gear(0x03, INPUT_RIGHT);
             // }
             // else
             //{
-                printf("水沸状态切换到下降状态，八段阀切换为大火1档\r\n");
+                LOG_default("水沸状态切换到下降状态，八段阀切换为大火1档\r\n");
                 change_multivalve_gear(0x01, INPUT_RIGHT); 
             //}
               
@@ -441,7 +441,7 @@ void boil_status_change(aux_handle_t *aux_handle)
  */
 void mode_boil_func(aux_handle_t *aux_handle)
 {
-    printf("enter func:%s\r\n",__func__);
+    LOG_default("enter func:%s\r\n",__func__);
     //用于判断此次状态和上次状态之间是否发生了变化
     static int before_next_tendency = IDLE;
 
@@ -452,7 +452,7 @@ void mode_boil_func(aux_handle_t *aux_handle)
         //上升趋势========================================================
         if(aux_handle->temp_array[0] - aux_handle->temp_array[ARRAY_DATA_SIZE - 1] <= 0)
         {
-            printf("begin rise tendency judge\r\n");
+            LOG_default("begin rise tendency judge\r\n");
             unsigned char rise_count1 = 0;
             unsigned char rise_count2 = 0;
             //两两相邻数据之间的9次比较
@@ -483,7 +483,7 @@ void mode_boil_func(aux_handle_t *aux_handle)
                     }
                 }
             } 
-            printf("rise_count1:%d,rise_count2:%d,rise_count3:%d\r\n",rise_count1,rise_count2,rise_count3);
+            LOG_default("rise_count1:%d,rise_count2:%d,rise_count3:%d\r\n",rise_count1,rise_count2,rise_count3);
             //rise_count3 = (aux_handle->average_temp_array[aux_handle->average_temp_size - 1] - aux_handle->average_temp_array[aux_handle->average_temp_size - 2] >= 10);
             //rise_count3 += 
             //仅仅靠10个温度难以判断是rise还是gentle
@@ -491,13 +491,13 @@ void mode_boil_func(aux_handle_t *aux_handle)
             if(rise_count2 >= 4 || rise_count3 >= 7)
             {
                 aux_handle->boil_next_tendency = RISE;
-                printf("[%s]present state is rising\r\n",__func__);
+                LOG_default("[%s]present state is rising\r\n",__func__);
                 break;
             }
         }
         else
         {
-            printf("begin down tendency judge\r\n");
+            LOG_default("begin down tendency judge\r\n");
             //下降趋势====================================================
             unsigned char down_count1 = 0;
             for(int i = 0; i < ARRAY_DATA_SIZE - 1; i++)
@@ -513,7 +513,7 @@ void mode_boil_func(aux_handle_t *aux_handle)
             if(aux_handle->boil_next_tendency == DOWN)
             {
                 //aux_handle->boil_next_status_tick = 4 * 5;     //快速的变化直接赋值下降的时间为5s，以及时切换到下降状态
-                printf("[%s]present state is down\r\n",__func__);
+                LOG_default("[%s]present state is down\r\n",__func__);
                 break;
             }
 
@@ -540,7 +540,7 @@ void mode_boil_func(aux_handle_t *aux_handle)
             //     {
             //         aux_handle->boil_next_tendency = DOWN;
             //         //aux_handle->boil_next_status_tick = 0;     //快速的变化直接赋值下降的时间为5s，以及时切换到下降状态
-            //         printf("[%s]present state is down\r\n",__func__);
+            //         LOG_default("[%s]present state is down\r\n",__func__);
             //         break;
             //     }
             // }
@@ -570,7 +570,7 @@ void mode_boil_func(aux_handle_t *aux_handle)
         if( gentle_count1 == 9 || abs(before_average - after_average) < 10)
         {
             aux_handle->boil_next_tendency = GENTLE;
-            printf("[%s]present state is gentle\r\n",__func__);
+            LOG_default("[%s]present state is gentle\r\n",__func__);
             break;
         }
 
@@ -581,7 +581,7 @@ void mode_boil_func(aux_handle_t *aux_handle)
     //待切换状态变化，则计时清零，开始对新状态进行计时
     if(aux_handle->boil_next_tendency != before_next_tendency)
     {
-        printf("next status change");
+        LOG_default("next status change");
         before_next_tendency = aux_handle->boil_next_tendency;
         aux_handle->boil_next_status_tick = 0;
     }
@@ -601,7 +601,7 @@ void mode_boil_func(aux_handle_t *aux_handle)
         if(ret)
         {
             aux_handle->boil_current_tendency = BOILED;
-            printf("切换到水开状态\r\n");
+            LOG_default("切换到水开状态\r\n");
             
             //进入水开次数累加
             aux_handle->enter_boil_time++;
@@ -675,17 +675,17 @@ void mode_boil_func(aux_handle_t *aux_handle)
 
         if(aux_handle->enter_boil_time == 1)
         {
-            printf("首次沸腾，开始倒计时\r\n");
+            LOG_default("首次沸腾，开始倒计时\r\n");
             
         }
         else if(aux_handle->enter_boil_time == 2)
         {
-            printf("第二次沸腾，开始倒计时\r\n");
+            LOG_default("第二次沸腾，开始倒计时\r\n");
         }
         else if(aux_handle->aux_remain_time > 2)
         {
             //后续进入沸腾仍然按照之前的倒计时进行
-            printf("后续沸腾，继续计时\r\n");
+            LOG_default("后续沸腾，继续计时\r\n");
         }
     }
     
@@ -702,7 +702,7 @@ void mode_boil_func(aux_handle_t *aux_handle)
     //煮模式计时结束，关火，通知电控模式成功退出
     if(aux_handle->aux_remain_time == 0)
     {
-        printf("boil count down time is on,close fire[boil success end!!!]\r\n");
+        LOG_default("boil count down time is on,close fire[boil success end!!!]\r\n");
         if(aux_close_fire_cb != NULL)
         {
             aux_close_fire_cb(INPUT_RIGHT);             //右灶关火
@@ -724,8 +724,8 @@ void mode_boil_func(aux_handle_t *aux_handle)
 
     aux_handle->boil_current_status_tick++;
 
-    printf("boil_remian_time:%d,enter_boil_time:%d\r\n",aux_handle->aux_remain_time,aux_handle->enter_boil_time);
-    printf("[%s]current status:[%s],total_tick:%d,current_status_tick:%d,next_status:%s,next_status_tick:%d\r\n",\
+    LOG_default("boil_remian_time:%d,enter_boil_time:%d\r\n",aux_handle->aux_remain_time,aux_handle->enter_boil_time);
+    LOG_default("[%s]current status:[%s],total_tick:%d,current_status_tick:%d,next_status:%s,next_status_tick:%d\r\n",\
     __func__,boil_status_info[aux_handle->boil_current_tendency ],aux_handle->aux_total_tick,aux_handle->boil_current_status_tick,\
     boil_status_info[aux_handle->boil_next_tendency],aux_handle->boil_next_status_tick);
 }
@@ -742,12 +742,12 @@ void mode_fry_func(aux_handle_t *aux_handle)
     //记录刚进入模式时的温度
     static unsigned int enter_mode_temp = 0;
     static bool gentle_flag = false;
-    printf("enter func:%s\r\n",__func__);
+    LOG_default("enter func:%s\r\n",__func__);
     aux_handle->fry_last_change_gear_tick++;
 
     if(aux_handle->aux_total_tick == 1)
     {
-        printf("enter fry mode temp:%d\r\n", aux_handle->current_average_temp);
+        LOG_default("enter fry mode temp:%d\r\n", aux_handle->current_average_temp);
         enter_mode_temp = aux_handle->current_average_temp;
         aux_handle->fry_step = 0;               //重置炸场景步骤
     }
@@ -783,7 +783,7 @@ void mode_fry_func(aux_handle_t *aux_handle)
 
         if(aux_handle->aux_total_tick <= 4 * 5)
         {
-            printf("初始阶段，5s内不做处理\r\n");
+            LOG_default("初始阶段，5s内不做处理\r\n");
         }
         else if(aux_handle->aux_total_tick > 4 * 5 && aux_handle->aux_total_tick <= 4 * 30)
         {
@@ -796,7 +796,7 @@ void mode_fry_func(aux_handle_t *aux_handle)
             else if(rise_count < 2)
             {
                 LOG_GRE("检测到处于热油阶段");
-                aux_handle->fry_step = 2;
+                aux_handle->fry_step = 1;
             }
             else        //如果都不满足暂时不判断
             {
@@ -804,7 +804,7 @@ void mode_fry_func(aux_handle_t *aux_handle)
                 if(aux_handle->aux_total_tick == 4 * 30)
                 {
                     LOG_GRE("30s没有检测到处于何种阶段，直接设定为热油阶段");
-                    aux_handle->fry_step = 2;
+                    aux_handle->fry_step = 1;
                 }
             }
         }
@@ -850,10 +850,10 @@ void mode_fry_func(aux_handle_t *aux_handle)
     if(aux_handle->fry_step == 1  || aux_handle->aux_total_tick > 30 * 4)
     {
         //0.25s相邻的两个温度发生大于5度的波动
-        if(abs(aux_handle->average_temp_array[ARRAY_DATA_SIZE - 1] - aux_handle->average_temp_array[ARRAY_DATA_SIZE - 2]) > 50)
+        if(abs(aux_handle->temp_array[ARRAY_DATA_SIZE - 1] - aux_handle->temp_array[ARRAY_DATA_SIZE - 2]) > 50)
         {
             aux_handle->fry_step == 2;              //进入到了控温步骤
-            printf("判断可能是放入了食用油或食材\r\n");
+            LOG_default("判断可能是放入了食用油或食材\r\n");
         }
     }
 
@@ -884,6 +884,7 @@ void mode_fry_func(aux_handle_t *aux_handle)
         //         aux_handle->fry_last_change_gear_tick = 0;
         //     }
         // }
+        //距离目标温度3度的时候开始降档，提前减速，后续方便控温
         else if(aux_handle->current_average_temp <= aux_handle->aux_set_temp * 10 - 10 * 15)
         {
             if(aux_handle->aux_multivalve_gear != 0x03 && aux_handle->fry_last_change_gear_tick >= 10 * 4)
@@ -928,7 +929,7 @@ void mode_fry_func(aux_handle_t *aux_handle)
  */
 void mode_chao_func(aux_handle_t *aux_handle)
 {
-    printf("enter func:%s\r\n",__func__);
+    LOG_default("enter func:%s\r\n",__func__);
     return;
 }
 
@@ -939,7 +940,7 @@ void mode_chao_func(aux_handle_t *aux_handle)
  */
 void mode_jian_func(aux_handle_t *aux_handle)
 {
-    printf("enter func:%s\r\n",__func__);
+    LOG_default("enter func:%s\r\n",__func__);
     return;
 }
 
@@ -965,28 +966,28 @@ void aux_assistant_input(enum INPUT_DIR input_dir, unsigned short temp, unsigned
 {
     aux_handle_t *aux_handle = get_aux_handle(input_dir);
 
-    aux_handle->aux_total_tick++;
+    //aux_handle->aux_total_tick++;
     aux_temp_save(aux_handle, temp);
-    printf("present target temp:%d,environment temp:%d\r\n",temp,environment_temp);
+    LOG_default("present target temp:%d,environment temp:%d\r\n",temp,environment_temp);
 
     if(aux_handle->aux_switch == 0 || aux_handle->ignition_switch == 0)
     {   
-        printf("aux closed\r\n");
+        LOG_default("aux closed\r\n");
         return;
     }
 
-    //aux_handle->aux_total_tick++;
+    aux_handle->aux_total_tick++;
 
     // if(aux_handle->aux_total_tick >= MAX_FIRE_TIME)
     // {
-    //     printf("兜底关火时间%d到，关闭火焰\r\n",MAX_FIRE_TIME/4);
+    //     LOG_default("兜底关火时间%d到，关闭火焰\r\n",MAX_FIRE_TIME/4);
     //     aux_close_fire_cb(INPUT_RIGHT);         //右灶关火
     //     aux_handle->aux_switch = 0;             //退出辅助烹饪模式
     // }
 
     if(aux_handle->temp_size < 10)
     {
-        printf("temp data is not enough,func return\r\n");
+        LOG_default("temp data is not enough,func return\r\n");
         return;
     }
     
@@ -1006,7 +1007,7 @@ void aux_assistant_input(enum INPUT_DIR input_dir, unsigned short temp, unsigned
             break;
         default:
         {
-            printf("Error cook Mode\r\n");
+            LOG_default("Error cook Mode\r\n");
             return;
         }
     }    

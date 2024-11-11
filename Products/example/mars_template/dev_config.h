@@ -47,6 +47,24 @@ extern char* get_current_time();
 	HAL_Printf("[Mars][%s:%d]Warning: "_fmt_"\r\n", __FILE__, __LINE__, ##__VA_ARGS__)
 #define mprintf_d(_fmt_, ...)	\
 	HAL_Printf("[%s] "_fmt_"\r\n",  get_current_time(), ##__VA_ARGS__)
+#define LOG_RED(_fmt_, ...)				\
+    HAL_Printf(COL_RED"[%s] "_fmt_"\r\n",  get_current_time(), ##__VA_ARGS__)
+    
+#define LOG_GRE(_fmt_, ...)				\
+    HAL_Printf(COL_GRE"[%s] "_fmt_"\r\n",  get_current_time(), ##__VA_ARGS__)    
+
+#define LOG_BLU(_fmt_, ...)				\
+    HAL_Printf(COL_BLU"[%s] "_fmt_"\r\n",  get_current_time(), ##__VA_ARGS__)    
+
+#define LOG_YEL(_fmt_, ...)				\
+    HAL_Printf(COL_YEL"[%s] "_fmt_"\r\n",  get_current_time(), ##__VA_ARGS__)    
+
+#define LOG_BAI(_fmt_, ...)				\
+    HAL_Printf(COL_WHE"[%s] "_fmt_"\r\n",  get_current_time(), ##__VA_ARGS__)     //white 和默认打印一致.
+
+#define LOG_default(_fmt_, ...) \
+    HAL_Printf(COL_WHE _fmt_, ##__VA_ARGS__)
+
 
 
 #define COMPUTE_BUILD_YEAR \
