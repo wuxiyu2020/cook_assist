@@ -38,30 +38,13 @@ static int cook_assistant_close_fire(enum INPUT_DIR input_dir)
 {
     uint8_t buf_setmsg[10] = {0};
     uint16_t buf_len = 0;
-    mars_template_ctx_t *mars_template_ctx = mars_dm_get_ctx();
-    
     buf_setmsg[buf_len++] = prop_HoodFireTurnOff;  //灶具关火
+
     if (input_dir == INPUT_RIGHT){
         buf_setmsg[buf_len++] = 0x01;
     }
-
-    //aux暂时对烟机照明取反操作,烟机连续变化两次表示算法主动关火
-    buf_setmsg[buf_len++] = prop_HoodLight;
-    buf_setmsg[buf_len++] = !mars_template_ctx->status.HoodLight;
-
+    
     Mars_uartmsg_send(cmd_set, uart_get_seq_mid(), buf_setmsg, buf_len, 3);
-
-    aos_msleep(1500);
-
-    memset(buf_setmsg, 0, sizeof(buf_setmsg));
-    buf_len = 0;
-    //aux暂时对烟机照明取反操作
-    buf_setmsg[buf_len++] = prop_HoodLight;
-    buf_setmsg[buf_len++] = !mars_template_ctx->status.HoodLight;
-
-    Mars_uartmsg_send(cmd_set, uart_get_seq_mid(), buf_setmsg, buf_len, 3);
-
-
     return 0;
 }
 
@@ -787,11 +770,6 @@ static int set_beep_type(int beep_type)
     int buf_len = 0;
     buf_setmsg[buf_len++] = prop_Beer;
     buf_setmsg[buf_len++] = beep_type;
-
-    mars_template_ctx_t *mars_template_ctx = mars_dm_get_ctx();
-    //aux暂时添加对烟机照明的取反操作
-    buf_setmsg[buf_len++] = prop_HoodLight;
-    buf_setmsg[buf_len++] = !mars_template_ctx->status.HoodLight;
     Mars_uartmsg_send(cmd_set,uart_get_seq_mid(),buf_setmsg,buf_len,3);
     return 0;
 }
@@ -811,7 +789,7 @@ static int aux_set_remaintime(unsigned char remaintime)
     int buf_len = 0;
     buf_setmsg[buf_len++] = prop_AuxCookLeftTime;
     buf_setmsg[buf_len++] = remaintime;
-    Mars_uartmsg_send(cmd_set,uart_get_seq_mid(),buf_setmsg,buf_len,3);
+    Mars_uartmsg_send(cmd_store,uart_get_seq_mid(),buf_setmsg,buf_len,3);
     return 0;
 }
 

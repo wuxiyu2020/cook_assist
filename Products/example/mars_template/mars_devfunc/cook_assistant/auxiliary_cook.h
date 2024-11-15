@@ -3,7 +3,7 @@
  * @Author       : zhouxc
  * @Date         : 2024-10-22 13:40:14
  * @LastEditors  : zhouxc
- * @LastEditTime : 2024-11-08 14:45:20
+ * @LastEditTime : 2024-11-14 16:32:21
  * @FilePath     : /et70-ca3/Products/example/mars_template/mars_devfunc/cook_assistant/auxiliary_cook.h
  */
 #ifndef _AUXILIARY_COOK_H
@@ -75,6 +75,9 @@ typedef struct
     char fry_step;                              //炸模式当前所处的步骤，0：未启动，1：热锅阶段，2：热油阶段，3：控温阶段
     unsigned int fry_last_change_gear_tick;     //最近一次切换档位经过的tick
     unsigned int fry_last_gear_average_temp;    //上一次调档前的平均温度
+    unsigned char rise_quick_tick;              //快速上升tick，热锅阶段温度上升快
+    unsigned char rise_slow_tick;               //缓慢上升tick，热油阶段温度上升慢
+    unsigned char first_reach_set_temp_flag;    //首次达到目标温度标志
 
     
 } aux_handle_t;
