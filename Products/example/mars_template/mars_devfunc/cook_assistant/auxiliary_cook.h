@@ -3,7 +3,7 @@
  * @Author       : zhouxc
  * @Date         : 2024-10-22 13:40:14
  * @LastEditors  : zhouxc
- * @LastEditTime : 2024-11-14 16:32:21
+ * @LastEditTime : 2024-11-21 16:06:49
  * @FilePath     : /et70-ca3/Products/example/mars_template/mars_devfunc/cook_assistant/auxiliary_cook.h
  */
 #ifndef _AUXILIARY_COOK_H
@@ -39,6 +39,8 @@ enum aux_boile_type
 
 typedef struct
 {
+    unsigned pan_fire_status;                       //烹饪助手移锅小火状态，0：未处于移锅小火状态，1：处于移锅小火状态
+
     unsigned char ignition_switch;                  //点火开关
     unsigned char aux_switch;                       //辅助烹饪开关
     unsigned char aux_type;                         //辅助烹饪模式

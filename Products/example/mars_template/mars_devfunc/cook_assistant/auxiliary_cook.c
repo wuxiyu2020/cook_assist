@@ -3,7 +3,7 @@
  * @Author       : zhouxc
  * @Date         : 2024-10-21 10:37:25
  * @LastEditors  : zhouxc
- * @LastEditTime : 2024-11-15 15:51:33
+ * @LastEditTime : 2024-11-21 17:04:35
  * @FilePath     : /et70-ca3/Products/example/mars_template/mars_devfunc/cook_assistant/auxiliary_cook.c
  */
 
@@ -173,6 +173,8 @@ void auxiliary_cooking_switch(int aux_switch, int cook_type, int set_time, int s
 void cook_aux_reinit(enum INPUT_DIR input_dir)
 {
     aux_handle_t *aux_handle = get_aux_handle(input_dir);
+
+    aux_handle->pan_fire_status = 0;    
     //初始化辅助烹饪设置参数
     aux_handle->aux_switch = 0;
     aux_handle->aux_type = 0;
@@ -580,7 +582,7 @@ void mode_boil_func(aux_handle_t *aux_handle)
         before_average /= 5;
         after_average /= 5;
 
-        if( gentle_count1 == 9 || abs(before_average - after_average) < 10)
+        if( gentle_count1 == 9 || abs(before_average - after_average) < 15)
         {
             aux_handle->boil_next_tendency = GENTLE;
             LOG_default("[%s]present state is gentle\r\n",__func__);
@@ -1063,6 +1065,13 @@ void aux_assistant_input(enum INPUT_DIR input_dir, unsigned short temp, unsigned
         return;
     }
 
+    if(aux_handle->pan_fire_status == 1)
+    {
+        LOG_RED("发生移锅小火，退出辅助烹饪");
+        aux_handle->aux_switch = 0;
+        cook_aux_init(INPUT_RIGHT);
+        aux_exit_cb(AUX_ERROR_EXIT);
+    }
     aux_handle->aux_total_tick++;
 
     // if(aux_handle->aux_total_tick >= MAX_FIRE_TIME)

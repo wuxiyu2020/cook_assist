@@ -12,6 +12,7 @@
 
 #include "cook_assistant/cook_wrapper.h"
 #include "cook_assistant/aux_api.h"
+#include "cook_assistant/auxiliary_cook.h"
 #include "mars_devmgr.h"
 #include "../mars_driver/mars_uartmsg.h"
 #include "mars_ca.h"
@@ -183,23 +184,40 @@ static int cook_assistant_hood_speed(int gear)
     return 0;
 }
 
+extern int(*multi_valve_cb)(enum INPUT_DIR input_dir, int gear);
 static int cook_assistant_fire_speed(const int gear, enum INPUT_DIR input_dir)
 {
-    mars_template_ctx_t *mars_template_ctx = mars_dm_get_ctx();  
-    uint8_t buf_setmsg[10] = {0};
-    uint16_t buf_len = 0;
+    // mars_template_ctx_t *mars_template_ctx = mars_dm_get_ctx();  
+    // uint8_t buf_setmsg[10] = {0};
+    // uint16_t buf_len = 0;
 
-    // if (mars_template_ctx->status.RStoveStatus == 0)
-    // {
-    //     LOGI("mars", "烹饪助手: 操作通断阀 = %d (由于右灶关闭,忽略本次调节!!!)", gear);
-    //     return 0;
-    // }
+    // // if (mars_template_ctx->status.RStoveStatus == 0)
+    // // {
+    // //     LOGI("mars", "烹饪助手: 操作通断阀 = %d (由于右灶关闭,忽略本次调节!!!)", gear);
+    // //     return 0;
+    // // }
     
-    buf_setmsg[buf_len++] = prop_RStoveSwitch;//右灶通断阀
-    buf_setmsg[buf_len++] = gear;
+    // buf_setmsg[buf_len++] = prop_RStoveSwitch;//右灶通断阀
+    // buf_setmsg[buf_len++] = gear;
 
-    Mars_uartmsg_send(cmd_set, uart_get_seq_mid(), buf_setmsg, buf_len, 3);
-    LOGI("mars", "烹饪助手: 操作通断阀 = %d", gear);    
+    if(gear == FIRE_SMALL)
+    {
+        //最小火
+        if(multi_valve_cb != NULL)
+            multi_valve_cb(INPUT_RIGHT,0x07);
+    }
+    else if(gear == FIRE_BIG)
+    {
+        //最大火
+        if(multi_valve_cb != NULL)
+            multi_valve_cb(INPUT_RIGHT,0x00);
+    }
+
+    
+
+    // Mars_uartmsg_send(cmd_set, uart_get_seq_mid(), buf_setmsg, buf_len, 3);
+    //LOGI("mars", "烹饪助手: 操作通断阀 = %d", gear);  
+    LOGI("mars", "烹饪助手: 操作八段阀 = %d", (gear?0x00:0x07));   
     return 0;
 }
 
@@ -479,9 +497,12 @@ static int hood_light_change(int gear)
 }
 
 void move_pan_fire(int type)
-{    
+{   
+    aux_handle_t *aux_handle = get_aux_handle(INPUT_RIGHT); 
     if (type == 1) //移锅小火
     {
+        aux_handle->pan_fire_status = 1;
+        
         aos_kv_del(PAN_FIRE_KV);
         aos_msleep(100);
         unsigned char flag = 1;
@@ -490,16 +511,19 @@ void move_pan_fire(int type)
     }
     else if (type == 2) //移锅复位
     {
+        aux_handle->pan_fire_status = 0;
         aos_kv_del(PAN_FIRE_KV);
         LOGI("mars", "退出移锅小火状态，清除移锅小火标记(移锅复位)");
     }
     else if (type == 3) //移锅关火
     {
+        aux_handle->pan_fire_status = 0;
         aos_kv_del(PAN_FIRE_KV);
         LOGI("mars", "移锅后关火时间到，清除移锅小火标记(移锅关火)");
     }
     else if(type == 4)
     {
+        aux_handle->pan_fire_status = 0;
         aos_kv_del(PAN_FIRE_KV);
         LOGI("mars","移锅小火中用户手动关火，清除移锅小火标记(移锅中关火)");
     }

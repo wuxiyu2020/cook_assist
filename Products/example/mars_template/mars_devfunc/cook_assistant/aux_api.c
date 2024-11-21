@@ -3,7 +3,7 @@
  * @Author       : zhouxc
  * @Date         : 2024-10-23 18:22:59
  * @LastEditors  : zhouxc
- * @LastEditTime : 2024-10-31 11:43:25
+ * @LastEditTime : 2024-11-21 15:59:19
  * @FilePath     : /et70-ca3/Products/example/mars_template/mars_devfunc/cook_assistant/aux_api.c
  */
 #include <stdio.h>
@@ -43,14 +43,17 @@ void set_aux_ignition_switch(unsigned char ignition_switch, enum INPUT_DIR input
                 aux_exit_cb(AUX_ERROR_EXIT);
             }
         }
-
-        //无论什么模式，关火都会退出辅助烹饪的逻辑
-        extern int(*multi_valve_cb)(enum INPUT_DIR input_dir, int gear);
-        if(multi_valve_cb != NULL)
+        else if(aux_handle->aux_type == MODE_CHAO || aux_handle->aux_type == MODE_JIAN || aux_handle->aux_type == MODE_ZHA)
         {
-            //恢复最大档位
-            printf("close fire,set mutivalve:0\r\n");
-            multi_valve_cb(INPUT_RIGHT,0);
+            //无论什么模式，关火都会退出辅助烹饪的逻辑
+            extern int(*multi_valve_cb)(enum INPUT_DIR input_dir, int gear);
+            if(multi_valve_cb != NULL)
+            {
+                //恢复最大档位
+                printf("close fire,set mutivalve:0\r\n");
+                multi_valve_cb(INPUT_RIGHT,0);
+                aux_exit_cb(AUX_SUCCESS_EXIT);
+            }
         }
         
         //需要上方先退出模式再重置模式
