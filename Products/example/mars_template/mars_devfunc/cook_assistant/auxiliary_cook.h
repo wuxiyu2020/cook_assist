@@ -3,7 +3,7 @@
  * @Author       : zhouxc
  * @Date         : 2024-10-22 13:40:14
  * @LastEditors  : zhouxc
- * @LastEditTime : 2024-11-21 16:06:49
+ * @LastEditTime : 2024-11-22 15:47:40
  * @FilePath     : /et70-ca3/Products/example/mars_template/mars_devfunc/cook_assistant/auxiliary_cook.h
  */
 #ifndef _AUXILIARY_COOK_H
@@ -66,6 +66,7 @@ typedef struct
     unsigned int boil_current_status_tick;          //煮模式当前趋势计时
     boil_tendency_t boil_next_tendency;             //煮模式待切换的下一个状态
     unsigned int boil_next_status_tick;             //煮模式待切换趋势计时
+    unsigned short max_up_value;
 
     // unsigned char boil_mode_rise_step;              //煮模式加热阶段标志位
     // unsigned int boil_mode_tick;                    //煮模式加热阶段时间计时
@@ -80,6 +81,8 @@ typedef struct
     unsigned char rise_quick_tick;              //快速上升tick，热锅阶段温度上升快
     unsigned char rise_slow_tick;               //缓慢上升tick，热油阶段温度上升慢
     unsigned char first_reach_set_temp_flag;    //首次达到目标温度标志
+    unsigned char first_hot_pot_flag;           //
+    unsigned char first_put_food_flag;          //首次放入食材标志位
 
     
 } aux_handle_t;
