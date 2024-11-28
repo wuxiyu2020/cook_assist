@@ -3,17 +3,18 @@
  * @Author       : zhouxc
  * @Date         : 2024-10-21 10:37:25
  * @LastEditors  : zhouxc
- * @LastEditTime : 2024-11-25 09:52:20
+ * @LastEditTime : 2024-11-28 09:27:59
  * @FilePath     : /et70-ca3/Products/example/mars_template/mars_devfunc/cook_assistant/auxiliary_cook.c
  */
 
 #include <stdio.h>
 #include <stdlib.h>
+#include<stdbool.h>
+#include "auxiliary_cook.h"
 #ifndef MODULE_TEST
     #include "cloud.h"
     #include "fsyd.h"
 #endif
-#include "auxiliary_cook.h"
 #define log_debug(...) LOGD(log_module_name, ##__VA_ARGS__)
 #define AUX_DATA_HZ 4
 #define START 2
@@ -315,11 +316,13 @@ int judge_water_boil(aux_handle_t *aux_handle)
     unsigned char before_gentle_rise = 0;
     for(int j = 0; j < ARRAY_DATA_SIZE -1; j++)
     {
+        //单个温度处于绝对平稳
         if(aux_handle->temp_array[j] == aux_handle->temp_array[j+1])
         {
             very_gentle_count++;
         }
 
+        //现在的平均温度处于上升状态
         if(aux_handle->average_temp_array[j] < aux_handle->average_temp_array[j+1])
         {
             before_gentle_rise++;
@@ -327,7 +330,7 @@ int judge_water_boil(aux_handle_t *aux_handle)
     }
 
     //最新的10个温度处于绝对平稳状态，最新的平均温度处于绝对的平稳，此逻辑适用于玻璃盖，因此限制温度为80度以上
-    if(very_gentle_count == ARRAY_DATA_SIZE - 1 && aux_handle->current_average_temp >= 80 * 10)
+    if(very_gentle_count == ARRAY_DATA_SIZE - 1 && before_gentle_rise == ARRAY_DATA_SIZE - 1 && aux_handle->current_average_temp >= 80 * 10)
     {
         //首个平均温度和最后一个平均温度时间间隔为2.5*9=22.5s的时间温度上升了超过11度
         if(aux_handle->average_temp_array[ARRAY_DATA_SIZE - 1] - aux_handle->average_temp_array[0] >= 11 * 10)

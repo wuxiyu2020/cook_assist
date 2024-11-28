@@ -2994,7 +2994,7 @@ static void change_state(state_handle_t *state_handle)
     }
     state_handle->last_temp_average /= 10;
 
-    log_debug("ring_buffer_peek: %s", peek_data_str);
+    //log_debug("ring_buffer_peek: %s", peek_data_str);
     
 
     // 点火开关判断
@@ -3032,6 +3032,9 @@ static void change_state(state_handle_t *state_handle)
         ++state_handle->total_tick;
         ++state_handle->tick_for_dryburn;
     }
+
+    //开火之后才会打印温度数据
+    LOGI("mars","ring_buffer_peek: %s", peek_data_str);
 
     if (state_hood.gear == GEAR_CLOSE)
     {

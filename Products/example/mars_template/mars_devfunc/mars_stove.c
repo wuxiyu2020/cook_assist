@@ -1517,7 +1517,7 @@ int mars_irtInit(void)
         LOGE("mars", "error: I²C红外测温模组未标定!!!!!!");
     }    
 	
-    Driver_IRT102mInit(220, IRT102mCallBack);
+    Driver_IRT102mInit(250, IRT102mCallBack);
 }
 
 void mars_sensor_uartMsgFromSlave(uartmsg_que_t *msg, 
