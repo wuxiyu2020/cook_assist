@@ -3,8 +3,8 @@
  * @Author       : zhouxc
  * @Date         : 2024-10-21 10:37:25
  * @LastEditors  : zhouxc
- * @LastEditTime : 2024-11-28 09:27:59
- * @FilePath     : /et70-ca3/Products/example/mars_template/mars_devfunc/cook_assistant/auxiliary_cook.c
+ * @LastEditTime : 2024-11-28 10:43:06
+ * @FilePath     : /et70-ca3/Products/example/mars_template/mars_devfunc/cook_assistant/auxiliary_cook/auxiliary_cook.c
  */
 
 #include <stdio.h>
@@ -12,8 +12,8 @@
 #include<stdbool.h>
 #include "auxiliary_cook.h"
 #ifndef MODULE_TEST
-    #include "cloud.h"
-    #include "fsyd.h"
+    #include "../cloud.h"
+    #include "../fsyd.h"
 #endif
 #define log_debug(...) LOGD(log_module_name, ##__VA_ARGS__)
 #define AUX_DATA_HZ 4

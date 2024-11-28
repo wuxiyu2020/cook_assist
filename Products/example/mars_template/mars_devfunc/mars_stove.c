@@ -16,7 +16,7 @@
 #include "../dev_config.h"
 #include "../mars_driver/mars_cloud.h"
 #include "cook_assistant/cook_wrapper.h"
-#include "cook_assistant/aux_api.h"
+#include "cook_assistant/auxiliary_cook/aux_api.h"
 #include "mars_stove.h"
 #include "mars_httpc.h"
 #if 1

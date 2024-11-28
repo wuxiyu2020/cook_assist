@@ -9,7 +9,7 @@
 #ifndef _AUXILIARY_COOK_H
 #define _AUXILIARY_COOK_H
 
-#include "cook_wrapper.h"
+#include "../cook_wrapper.h"
 #define ARRAY_DATA_SIZE 10
 #define MAX_FIRE_TIME 4 * 20    //最长开火时间
 

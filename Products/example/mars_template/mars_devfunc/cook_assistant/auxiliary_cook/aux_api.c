@@ -3,12 +3,12 @@
  * @Author       : zhouxc
  * @Date         : 2024-10-23 18:22:59
  * @LastEditors  : zhouxc
- * @LastEditTime : 2024-11-21 15:59:19
- * @FilePath     : /et70-ca3/Products/example/mars_template/mars_devfunc/cook_assistant/aux_api.c
+ * @LastEditTime : 2024-11-28 10:42:53
+ * @FilePath     : /et70-ca3/Products/example/mars_template/mars_devfunc/cook_assistant/auxiliary_cook/aux_api.c
  */
 #include <stdio.h>
 #include <string.h>
-#include "cloud.h"
+#include "../cloud.h"
 #include "auxiliary_cook.h"
 
 

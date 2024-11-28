@@ -17,7 +17,7 @@ INCLUDE      =  $(INCLUDE_PATH)/ \
 
 app = $(wildcard ./*.c ./mars_driver/*.c ./certification/*.c ./common/*.c ./mars_devfunc/*.c ./mars_devfunc/irt102m/*.c\
 				 ./mars_devfunc/cook_assistant/app_pot_cover/*.c ./mars_devfunc/cook_assistant/app_water_boil/*.c \
-				 ./mars_devfunc/cook_assistant/app_quick_cooking/*.c ./mars_devfunc/cook_assistant/*.c)
+				 ./mars_devfunc/cook_assistant/app_quick_cooking/*.c ./mars_devfunc/cook_assistant/*.c ./mars_devfunc/cook_assistant/auxiliary_cook/*.c)
 
 obj_app = $(patsubst %.c,%.o,$(app))
 
@@ -130,6 +130,7 @@ $(target):$(obj_app)
 	@mv mars_devfunc/cook_assistant/app_pot_cover/*.o obj
 	@mv mars_devfunc/cook_assistant/app_water_boil/*.o obj
 	@mv mars_devfunc/cook_assistant/app_quick_cooking/*.o obj
+	@mv mars_devfunc/cook_assistant/auxiliary_cook/*.o obj
 	@mv mars_devfunc/irt102m/*.o obj
 	@$(RM) -rf *.d 
 	@$(AR) -rcs $(PWD)/../../../prebuild/lib/$(target).a obj/*.o 2>/dev/null

@@ -11,8 +11,8 @@
 #include <aos/aos.h>
 
 #include "cook_assistant/cook_wrapper.h"
-#include "cook_assistant/aux_api.h"
-#include "cook_assistant/auxiliary_cook.h"
+#include "cook_assistant/auxiliary_cook/aux_api.h"
+#include "cook_assistant/auxiliary_cook/auxiliary_cook.h"
 #include "mars_devmgr.h"
 #include "../mars_driver/mars_uartmsg.h"
 #include "mars_ca.h"
