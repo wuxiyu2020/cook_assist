@@ -657,7 +657,7 @@ static int ota_boot(void *something)
             g_ota_status.img_crc = param->crc;
             // g_ota_status.img_size = param->len - 16;
             g_ota_status.img_size = param->len;         //校验位也进行传输
-            g_ota_status.pack_size = 256;
+            g_ota_status.pack_size = 128;
             //msg send
             g_ota_status.ota_step = M_MODULEOTA_STATRT;
             g_moduleota_taskstatus = true;
