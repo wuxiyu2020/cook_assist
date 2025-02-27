@@ -6,7 +6,7 @@
 	],
 	"settings": {
 		"files.exclude": {
-			"prebuild/": false,
+			"prebuild/": true,
 			"tools": false,
 			"Living_SDK/example/": true,
 			"Living_SDK/board/[a-s]*": true,

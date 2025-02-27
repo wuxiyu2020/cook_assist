@@ -186,6 +186,7 @@ void mars_temper_report(uint16_t msg_len)
 void static m_tempreport_pre(int16_t i16_tempvalue, mars_template_ctx_t *mars_template_ctx)
 {
     static uint64_t time_temp_mqtt = 0;
+    static int16_t  temp_last = 0;
     static uint8_t temp_report_cnt = 40;
     static int16_t i16_tempvalue_last = 0;
     if (mars_template_ctx->cloud_connected && mars_getTimestamp_ms() && mars_template_ctx->status.RStoveStatus)
@@ -226,7 +227,7 @@ void static m_tempreport_pre(int16_t i16_tempvalue, mars_template_ctx_t *mars_te
     static uint8_t Send_temp_count = 0;     //当前采集到的平均温度
     if (g_user_cook_assist.ROilTempSwitch)
     {
-        //3s下发一次当前的温度，为了方式跳动偏差，此处采取平均值的方式
+/*         //3s下发一次当前的温度，为了方式跳动偏差，此处采取平均值的方式
         if ((time_temp_mqtt == 0) || (aos_now_ms() - time_temp_mqtt) >= (1*5000))
         {
             // char property_payload[64] = {0};
@@ -254,6 +255,13 @@ void static m_tempreport_pre(int16_t i16_tempvalue, mars_template_ctx_t *mars_te
         {
             Send_temp += i16_tempvalue;
             Send_temp_count++;
+        } */
+
+        if ((time_temp_mqtt == 0) || (aos_now_ms() - time_temp_mqtt) >= (10*1000) || (i16_tempvalue != temp_last))
+        {
+            mars_sync_tempture(i16_tempvalue, mars_template_ctx->status.REnvTemp);
+            temp_last = i16_tempvalue;
+            time_temp_mqtt = aos_now_ms();
         }
     }
 }
@@ -1405,7 +1413,7 @@ void IRT102mCallBack(SENSOR_STATUS_ENUM status, float TargetTemper1, float Envir
     // }
 
 
-    if (aos_now_ms() - log_time >= 10*1000)
+    if (aos_now_ms() - log_time >= 30*1000)
     {
         log_flag = true;
         log_time = aos_now_ms();

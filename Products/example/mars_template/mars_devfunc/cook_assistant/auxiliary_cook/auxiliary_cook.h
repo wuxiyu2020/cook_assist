@@ -13,6 +13,15 @@
 #define ARRAY_DATA_SIZE 10
 #define MAX_FIRE_TIME 4 * 20    //最长开火时间
 
+#define ARGUMENT_SANITY_CHECK( cond, ret )  						                                                            \
+    do {                                            						                                                    \
+        if( !(cond) )                               						                                                    \
+        {                                           						                                                    \
+            LOGI("mars", "### %s | %s(%d): ASSERT FAILED ### (%s is FALSE)", __FILE__, __func__, __LINE__, #cond);              \
+            return( ret );                          						                                                    \
+        }                                           						                                                    \
+    } while( 0 )
+
 typedef enum
 {
     IDLE,

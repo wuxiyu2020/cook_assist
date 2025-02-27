@@ -9,7 +9,10 @@
 #ifndef AUX_API_H_
 #define AUX_API_H_
 
+#include "auxiliary_cook.h"
+
 void set_aux_ignition_switch(unsigned char ignition_switch, enum INPUT_DIR input_dir);
 void set_multivalve_gear(unsigned char gear, enum INPUT_DIR input_dir);
+aux_handle_t *get_aux_handle(enum INPUT_DIR input_dir);
 
 #endif

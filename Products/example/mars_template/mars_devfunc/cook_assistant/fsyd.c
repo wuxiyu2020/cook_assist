@@ -3034,7 +3034,7 @@ static void change_state(state_handle_t *state_handle)
     }
 
     //开火之后才会打印温度数据
-    LOGI("mars","ring_buffer_peek: %s", peek_data_str);
+    //LOGI("mars","ring_buffer_peek: %s", peek_data_str);
 
     if (state_hood.gear == GEAR_CLOSE)
     {

@@ -61,8 +61,8 @@ void mars_beer_control(uint8_t val)
 void mars_sync_tempture(uint16_t tar_temp, uint16_t env_temp)
 {
     uint8_t buf[] = {prop_ROilTemp, tar_temp/256, tar_temp%256, prop_REnvTemp, env_temp/256, env_temp%256};
-    Mars_uartmsg_send(cmd_store, uart_get_seq_mid(),  buf, sizeof(buf), 3);
-    LOGI("mars", "下发右灶温度: 目标温度=%d℃ 环境温度=%d℃", tar_temp, env_temp);
+    Mars_uartmsg_send(cmd_store, uart_get_seq_mid(),  buf, sizeof(buf), 0);
+    //LOGI("mars", "下发右灶温度: 目标温度=%d℃ 环境温度=%d℃", tar_temp, env_temp);
 }
 
 void mars_store_netstatus()
