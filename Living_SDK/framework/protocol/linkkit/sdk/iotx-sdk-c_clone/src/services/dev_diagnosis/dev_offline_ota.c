@@ -123,7 +123,7 @@ int dev_notify_offline_ota_result(int resp_code)
     uint16_t msgid = -1;
     int result = awss_cmp_coap_send(resp_data, strlen(resp_data), &g_networkaddr, topic, dev_offline_ota_resp, &msgid);
     (void)result;  /* remove complier warnings */
-    awss_info("coap send notify %s", result == 0 ? "success" : "fail");
+    //awss_info("coap send notify %s", result == 0 ? "success" : "fail");
 
     return 0;
 }

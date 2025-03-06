@@ -259,7 +259,7 @@ void static m_tempreport_pre(int16_t i16_tempvalue, mars_template_ctx_t *mars_te
 
         if ((time_temp_mqtt == 0) || (aos_now_ms() - time_temp_mqtt) >= (10*1000) || (i16_tempvalue != temp_last))
         {
-            mars_sync_tempture(i16_tempvalue, mars_template_ctx->status.REnvTemp);
+            //mars_sync_tempture(i16_tempvalue, mars_template_ctx->status.REnvTemp);
             temp_last = i16_tempvalue;
             time_temp_mqtt = aos_now_ms();
         }
@@ -900,7 +900,20 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
                     mars_template_ctx->status.AuxCookMode =AuxCookMode;
                     mars_template_ctx->status.AuxCookSetTime = AuxTime;
                     mars_template_ctx->status.AuxCookSetTemp = AuxTemp;
-                    LOGI("mars","Cook Assistant set Success!设置模式成功：%s",AuxMode[mars_template_ctx->status.AuxCookMode]);
+                    if (AuxCookSwitch > 0)
+                    {
+                        char voice_buff[64] = {0x00};
+                        snprintf(voice_buff, sizeof(voice_buff), "%s启动", AuxMode[mars_template_ctx->status.AuxCookMode]);
+                        udp_voice_write(voice_buff, strlen(voice_buff), 50);
+                        LOGI("mars","%s", voice_buff);
+                    }
+                    else
+                    {
+                        char* tips = "退出辅助烹饪";
+                        udp_voice_write(tips, strlen(tips), 50);
+                        LOG_BAI("*****%s*****", tips);
+                    }
+                    
                     mars_template_ctx->status.AuxCookLeftTime = mars_template_ctx->status.AuxCookSetTime;
                     mars_template_ctx->status.AuxCookLeftTime_s = mars_template_ctx->status.AuxCookSetTime * 60;
 

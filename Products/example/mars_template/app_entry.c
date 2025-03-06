@@ -152,6 +152,9 @@ static void wifi_service_event(input_event_t *event, void *priv_data)
         netmgr_wifi_get_ip(ipStr);
         LOGI("mars", "wifi连接进程: 已分配ip (热点名称=%s 分配ip=%s)\r\n", config.ssid, ipStr);
 
+        extern void udp_voice_init(void);
+        udp_voice_init();
+
         if (mars_factory_status())// 产测模式
 		{            
             // uint8_t send_buf[2] = {0};

@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include "auxiliary_cook.h"
+#include "iot_import.h"
 #ifndef MODULE_TEST
     #include "../cloud.h"
     #include "../fsyd.h"
@@ -20,17 +21,29 @@
 #define START 2
 #define STEP 3
 
+intptr_t fd;
+NetworkAddr udp_dest_addr = {0x00};
+#define UDP_VOICE_ADDR    "192.168.50.54"
+#define UDP_VOICE_PORT    (6711)
+#define UDP_VOICE_MSG_QUEUE_SIZE (8)
+aos_queue_t udp_voice_msg_queue;
+char udp_voice_msg_queue_buff[UDP_VOICE_MSG_QUEUE_SIZE * 4];
+
+ring_buffer_t fire_gear_queue;
+
 typedef struct {
     uint64_t time;
     uint16_t temp;
 }temp_value_t;
 
-temp_value_t save_current_temp(uint16_t temp)
+temp_value_t save_current_temp(uint16_t cur_temp)
 {   
     temp_value_t value = {
         .time = aos_now_ms(),
-        .temp = temp
-        };     
+        .temp = cur_temp
+        };    
+
+    return value;
 }
 
 double calculateSlope(temp_value_t value1, temp_value_t value2) 
@@ -45,9 +58,12 @@ int compare(const void *a, const void *b)
 }
 
 // 计算中位数的函数
-uint16_t findMedian(uint16_t arr[], size_t size) 
+uint16_t findMedian(uint16_t data[], size_t size) 
 {
+    unsigned short arr[ARRAY_DATA_SIZE] = {0x00};    
+
     // 对数组进行排序
+    memcpy(arr, data, sizeof(arr));
     qsort(arr, size, sizeof(uint16_t), compare);
 
     // 计算中位数
@@ -61,11 +77,133 @@ uint16_t findMedian(uint16_t arr[], size_t size)
     }
 }
 
-typedef void (*state_func_t)(void* fsm, void* user);
-typedef struct {
-    uint64_t state_time;
-    state_func_t state_func;
-}func_ptr_fsm_t;
+// 计算中位数的函数
+uint16_t findMax(uint16_t data[], size_t size) 
+{
+    uint16_t max_value = data[0];  // 假设第一个元素是最大值
+    for (size_t i = 1; i < size; ++i) {
+        if (data[i] > max_value) {
+            max_value = data[i];
+        }
+    }
+
+    return max_value;
+}
+
+// 计算中位数的函数
+uint16_t findMin(uint16_t data[], size_t size) 
+{
+    uint16_t min_value = data[0];  // 假设第一个元素是最小值
+    for (size_t i = 1; i < size; ++i) {
+        if (data[i] < min_value) {
+            min_value = data[i];
+        }
+    }
+
+    return min_value;
+}
+
+// 计算中位数的函数
+uint16_t findAver(uint16_t data[], size_t size) 
+{
+    uint32_t sum = 0;  // 使用 uint32_t 防止溢出
+    for (size_t i = 0; i < size; ++i) {
+        sum += data[i];
+    }
+
+    // 计算平均值并舍弃小数部分
+    uint16_t average = (uint16_t)(sum / size);
+    return average;
+}
+
+void printf_cur_temp_array(aux_handle_t* aux_handle)
+{
+    uint8_t szArray[128] = {0x00};
+    for (int i=0; i<ARRAY_DATA_SIZE; i++)
+    {
+        sprintf(szArray + strlen(szArray), "%d ", aux_handle->temp_array[i]);
+    }
+    LOG_GRE("数据统计: %s  (最小值=%d 最大值=%d 平均值=%d 中位值=%d)", 
+    szArray, 
+    findMin(aux_handle->temp_array, ARRAY_DATA_SIZE),
+    findMax(aux_handle->temp_array, ARRAY_DATA_SIZE),
+    findAver(aux_handle->temp_array, ARRAY_DATA_SIZE),
+    findMedian(aux_handle->temp_array, ARRAY_DATA_SIZE));
+}
+
+void udp_voice_init(void)
+{
+    fd = (intptr_t)HAL_UDP_create_without_connect(NULL, 5711);
+    if ((intptr_t) - 1 == fd) {
+        LOG_BAI("error: HAL_UDP_create_without_connect fail");
+        return;
+    }
+
+    memset(&udp_dest_addr, 0, sizeof(udp_dest_addr));
+    memcpy(udp_dest_addr.addr, UDP_VOICE_ADDR, strlen(UDP_VOICE_ADDR));
+    udp_dest_addr.port = UDP_VOICE_PORT;
+
+    aos_queue_new(&udp_voice_msg_queue, udp_voice_msg_queue_buff, UDP_VOICE_MSG_QUEUE_SIZE * 4, 4);
+
+    ring_buffer_init(&fire_gear_queue, 8, 1);
+}
+
+int udp_voice_deinit()
+{
+    int ret = close((int)fd);
+    fd = -1;
+    return ret;
+}
+
+int udp_voice_write(const unsigned char* p_data, unsigned int datalen,unsigned int timeout_ms)
+{
+    char* buff = (char*)aos_malloc(datalen+1);
+    if (buff != NULL)
+    {
+        memset(buff, 0x00, datalen+1);
+        memcpy(buff, p_data, datalen);
+        uint32_t addr = (uint32_t)buff;
+        aos_queue_send(&udp_voice_msg_queue, &addr, 4);
+        LOG_BAI("语音消息·进入队列 (0x%08X %s)", buff, p_data);
+    }
+}
+
+int udp_voice_send()
+{
+    static uint64_t time = 0;
+
+    if ((aos_now_ms() - time) <= 3000)
+    {
+        return -1;
+    }
+
+    if ((intptr_t) - 1 == fd)
+    {
+        return -1;
+    }
+
+    uint32_t addr = 0;
+    unsigned int size_recv = 0;
+    if (aos_queue_recv(&udp_voice_msg_queue, AOS_NO_WAIT, &addr, &size_recv) != 0) //AOS_WAIT_FOREVER 传入0获取不到会立即报失败
+    {
+        return -1;
+    }
+    
+    char* buff = (char*)addr;
+    if (buff != NULL)
+    {
+        LOG_BAI("语音消息·移出队列 0x%08X", buff);
+        //LOG_BAI("(%s %d) 发送语音: %s", udp_dest_addr.addr, udp_dest_addr.port, buff);
+        HAL_UDP_sendto(fd, &udp_dest_addr, buff, strlen(buff), 50);
+        time = aos_now_ms();
+        aos_free(buff);
+        return 0;
+    }
+    
+
+    return -1;
+    
+}
 
 void switch_fsm_state(func_ptr_fsm_t* fsm, state_func_t func)
 {
@@ -119,31 +257,13 @@ void register_multivalve_cb(int(*cb)(enum INPUT_DIR input_dir, int gear))
  */
 int change_multivalve_gear(unsigned char gear, enum INPUT_DIR input_dir)
 {
-    LOG_BAI("enter:%s ",__func__);
-
     aux_handle_t *aux_handle = get_aux_handle(input_dir);
-    if(gear > 7) 
-    {
-        LOG_BAI("小于最小档位，设置为最小档位");
-        gear = 0x07;
-    }
-    else if(gear < 0)
-    {
-       LOG_BAI("超出最大档位，设置为最大档位");
-        gear = 0x00;
-    }
+    char voice_buff[64] = {0x00};
 
     //如果设置档位和当前档位一致，直接返回
     if(aux_handle->aux_multivalve_gear == gear)
     {
-        LOG_BAI("aim gear is now gear,not response ");
-        return -1;
-    }
-
-    //判断尚未到达目标档位，不进行档位调整
-    if(aux_handle->aux_multivalve_gear != aux_handle->aux_aim_multivalve_gear)
-    {   
-        LOG_BAI("multivalve is moving,this change not reponse ");
+        LOG_BAI("error: 目标档位(%d)与当前档位(%d)一致，不下发切换指令", gear, aux_handle->aux_multivalve_gear);
         return -1;
     }
 
@@ -153,16 +273,57 @@ int change_multivalve_gear(unsigned char gear, enum INPUT_DIR input_dir)
         return -1;
     }
 
-    if(multi_valve_cb != NULL)
+    unsigned char fire_gear = gear;
+    ring_buffer_push(&fire_gear_queue, &fire_gear);
+    snprintf(voice_buff, sizeof(voice_buff), "切换火力%d档", gear);
+    udp_voice_write(voice_buff, strlen(voice_buff), 50);
+    return 0;
+
+    // //判断尚未到达目标档位，不进行档位调整
+    // if(aux_handle->aux_multivalve_gear != aux_handle->aux_aim_multivalve_gear)
+    // {
+    //     LOG_BAI("error: 上一个切换(目标%d档)正在进行中，不下发切换指令", aux_handle->aux_aim_multivalve_gear);
+    //     return -1;
+    // }
+
+    // //煮模式最后两分钟,只接受1档设置
+    // if(aux_handle->aux_type == MODE_ZHU && aux_handle->aux_remain_time <= 2 * 60 * INPUT_DATA_HZ && gear != 0x01)
+    // {
+    //     return -1;
+    // }
+
+    // if(multi_valve_cb != NULL)
+    // {
+    //     aux_handle->aux_aim_multivalve_gear = gear;
+    //     multi_valve_cb(INPUT_RIGHT, gear);
+    //     snprintf(voice_buff, sizeof(voice_buff), "切换火力%d档", gear);
+    //     udp_voice_write(voice_buff, strlen(voice_buff), 50);
+    //     return 0;
+    // }
+
+    // return -1;    
+}
+
+void send_multivalve_gear(int dir)
+{    
+    if (ring_buffer_valid_size(&fire_gear_queue) > 0)
     {
-        //记录一次目标档位
-        aux_handle->aux_aim_multivalve_gear = gear;
-        multi_valve_cb(INPUT_RIGHT,gear);
-        LOG_RED("设置目标档位为:%d",gear);
-        return 0;
+        aux_handle_t *aux_handle = get_aux_handle(dir);
+        if(aux_handle->aux_multivalve_gear != aux_handle->aux_aim_multivalve_gear)//判断尚未到达目标档位，不进行档位调整
+        {
+            LOG_BAI("error: 上一个切换正在进行中......(%d)", aux_handle->aux_aim_multivalve_gear);
+            return -1;
+        }
+
+        unsigned char gear = 0;
+        ring_buffer_read(&fire_gear_queue, &gear, 1);
+        if(multi_valve_cb != NULL)
+        {
+            aux_handle->aux_aim_multivalve_gear = gear;
+            multi_valve_cb(INPUT_RIGHT, gear);
+            return 0;
+        }
     }
-    return -1;
-    
 }
 
 int (*aux_close_fire_cb)(enum INPUT_DIR input_dir);
@@ -259,8 +420,7 @@ void cook_aux_reinit(enum INPUT_DIR input_dir)
 
     aux_handle->max_up_value = 0;
 
-    //煮模式变量重置
-    aux_handle->aux_total_tick = 0;
+    //煮模式变量重置    
     aux_handle->boil_current_tendency = 0;
     aux_handle->boil_current_status_tick = 0;
     aux_handle->boil_next_tendency = 0;
@@ -280,6 +440,12 @@ void cook_aux_reinit(enum INPUT_DIR input_dir)
     aux_handle->fry_last_change_gear_tick = 0;
     aux_handle->first_hot_pot_flag = 0;
     aux_handle->first_put_food_flag = 0;
+
+    aux_handle->aux_total_tick = 0;
+    memset(aux_handle->temp_array, 0x00, sizeof(aux_handle->temp_array));
+    aux_handle->temp_size = 0;
+    memset(aux_handle->average_temp_array, 0x00, sizeof(aux_handle->average_temp_array));
+    aux_handle->average_temp_size = 0;
 }
 
 /**
@@ -355,26 +521,26 @@ void aux_temp_save(aux_handle_t *aux_handle,unsigned short temp)
         }
     }
 
-    window_average[window_average_size] = average_temp;
-    window_average_size++;
-    if(aux_handle->aux_total_tick % ARRAY_DATA_SIZE == 0)
-    {
-        uint8_t szArray[64] = {0x00};
-        uint8_t szArrayAverage[64] = {0x00};
-        for (int i=0; i<ARRAY_DATA_SIZE; i++)
-        {
-            sprintf(szArray + strlen(szArray), "%03d ", aux_handle->temp_array[i]);
-            sprintf(szArrayAverage + strlen(szArrayAverage),  "%03d ", window_average[i]);
-        }
+    // window_average[window_average_size] = average_temp;
+    // window_average_size++;
+    // if(aux_handle->aux_total_tick % ARRAY_DATA_SIZE == 0)
+    // {
+    //     uint8_t szArray[128] = {0x00};
+    //     uint8_t szArrayAverage[128] = {0x00};
+    //     for (int i=0; i<ARRAY_DATA_SIZE; i++)
+    //     {
+    //         sprintf(szArray + strlen(szArray), "%d ", aux_handle->temp_array[i]);
+    //         sprintf(szArrayAverage + strlen(szArrayAverage),  "%d ", window_average[i]);
+    //     }
 
-        LOG_GRE("*****************************");
-        LOG_GRE("实时温度: %s", szArray);
-        LOG_BAI("平均温度(隔离): %d", average_temp);
-        LOG_BAI("平均温度(连续): %s", szArrayAverage);
+    //     LOG_GRE("*****************************");
+    //     LOG_GRE("统计 实时温度: %s", szArray);
+    //     //LOG_BAI("统计 平均温度(隔离): %d", average_temp);
+    //     //LOG_BAI("统计 平均温度(连续): %s", szArrayAverage);
 
-        memset(window_average, 0x00, sizeof(window_average));
-        window_average_size = 0x00;
-    }
+    //     memset(window_average, 0x00, sizeof(window_average));
+    //     window_average_size = 0x00;
+    // }
 }
 
 
@@ -1216,13 +1382,13 @@ void mode_fry_func(aux_handle_t *aux_handle)
     return;
 }
 
-void mode_chao_func_heat_pan(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle);
-void mode_chao_func_heat_oil(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle);
-void mode_chao_func_heat_onion(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle);
-void mode_chao_func_heat_food(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle);
-
-void mode_chao_func_heat_pan(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
+void chao_heat_pan(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle);      //热锅
+void chao_heat_oil(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle);      //热油
+void chao_heat_onion(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle);    //葱姜蒜
+void chao_heat_food(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle);     //炒食物
+void chao_heat_pan(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
 {
+    //去除温度曲线的毛刺，借助chatgpt，从第一个稳定的温度开始（如何找第一个稳定的温度：连续10个温度，相邻两个温度之间不超过3度），相邻两个温度的绝对值不能超过±3度，超过了就把这个温度去除掉
     static temp_value_t temp_value_last = {0x00};
     uint16_t cur_temp = aux_handle->temp_array[ARRAY_DATA_SIZE - 1];
 
@@ -1230,8 +1396,9 @@ void mode_chao_func_heat_pan(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
     {
         LOG_BAI("炒模式: *****进入热锅*****");
         set_fsm_time(fsm);
-        temp_value_last = save_current_temp(cur_temp);
+        temp_value_last = save_current_temp(findMedian(aux_handle->temp_array, ARRAY_DATA_SIZE));  //cur_temp
     }
+
 
     //一直处于热锅阶段里面
     if (cur_temp < 200)
@@ -1259,12 +1426,12 @@ void mode_chao_func_heat_pan(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
 
         if ((slope > 3.0) && (middle_temp <= 2000))
         {
-            switch_fsm_state(fsm, mode_chao_func_heat_oil);
+            switch_fsm_state(fsm, chao_heat_oil);
         }
 
         if ((slope < 0.2) && (middle_temp <= 1700))
         {
-            switch_fsm_state(fsm, mode_chao_func_heat_onion);
+            switch_fsm_state(fsm, chao_heat_onion);
         }
 
         temp_value_last = temp_value_now;
@@ -1273,17 +1440,17 @@ void mode_chao_func_heat_pan(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
 
 }
 
-void mode_chao_func_heat_oil(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
+void chao_heat_oil(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
 {
     
 }
 
-void mode_chao_func_heat_onion(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
+void chao_heat_onion(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
 {
     
 }
 
-void mode_chao_func_heat_food(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
+void chao_heat_food(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
 {
     
 }
@@ -1293,149 +1460,287 @@ void mode_chao_func_heat_food(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
  * @param {aux_handle_t} *aux_handle
  * @return {*}
  */
-void mode_chao_func(aux_handle_t *aux_handle) //这里存在一个问题：在炒模式结束时或者右灶关闭时，需要对fsm进行反初始化，为下一次的炒模式进来时fsm处于一个合适的状态(fsm.state_func为空)
+void mode_chao_func(aux_handle_t *aux_handle)
 {
-    static func_ptr_fsm_t fsm = {0x00};  //跟煎一样的问题，烹饪模式停止时没有对fsm进行复位，因为二次启动时会不正常，处于未初始化的状态
-    if (fsm.state_func == NULL) //二次启动时，这个if条件满足，因此无法正常二次启动
+    if (aux_handle->fsm_chao.state_func == NULL)
     {
-        switch_fsm_state(&fsm, mode_chao_func_heat_pan);
+        switch_fsm_state(&aux_handle->fsm_chao, chao_heat_pan);
     }
 
-    run_fsm(&fsm, aux_handle);
+    run_fsm(&aux_handle->fsm_chao, aux_handle);
 }
 
-void mode_jian_func_heat_pan(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle);
-void mode_jian_func_heat_oil(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle);
-void mode_jian_func_heat_food(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle);
-
-void mode_jian_func_heat_pan(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
+void jian_heat_pan(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle);  //热锅
+void jian_heat_oil(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle);  //热油
+void jian_heat_food(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle); //煎食物
+void jian_heat_pan(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
 {
+    char voice_buff[64] = {0x00};
     static temp_value_t temp_value_last = {0x00};
-    uint16_t cur_temp = aux_handle->temp_array[ARRAY_DATA_SIZE - 1];
+    static temp_value_t temp_value_last_5 = {0x00};
+    uint16_t temp_cur = aux_handle->temp_array[ARRAY_DATA_SIZE - 1];            // 最新温度 
+    uint16_t temp_mid = findMedian(aux_handle->temp_array, ARRAY_DATA_SIZE);    // 中位数温度
+    static bool is_remind = false;
+    static bool fire_1_switch_flag = false;
+    static bool fire_4_switch_flag = false;
+    static bool fire_7_switch_flag = false;
+    static bool temp_arrivate = false;
 
     if (fsm->state_time == 0)
     {
-        LOG_BAI("*****进入热锅*****");
+        udp_voice_write("开始热锅", strlen("开始热锅"), 50);
+        LOG_BAI("煎模式: 进入热锅");
         set_fsm_time(fsm);
-        temp_value_last = save_current_temp(cur_temp);
+        temp_value_last = save_current_temp(temp_mid);  //temp_cur
+        temp_value_last_5 = temp_value_last;
+        is_remind = false;
+        temp_arrivate = false;
     }
 
     //一直处于热锅阶段里面
-    if (cur_temp < 200)
+    if (temp_mid < 190*10)  //temp_cur
     {
-        change_multivalve_gear(0x01, INPUT_RIGHT); //火力1档加热
+        if (!fire_1_switch_flag)
+        {
+            LOG_BAI("煎模式: 切换火力到1档 (%d)", temp_mid);
+            change_multivalve_gear(0x01, INPUT_RIGHT); //火力1档加热
+            fire_1_switch_flag = true;
+            fire_4_switch_flag = false;
+            fire_7_switch_flag = false;
+        }
+
+        if (temp_arrivate && (temp_mid < 140*10))
+        {
+            printf_cur_temp_array(aux_handle);
+            //LOG_BAI("温度骤降,热锅结束 (耗时%lu秒 温度=%d)", ((aos_now_ms() - fsm->state_time)/1000), temp_mid);
+            LOG_BAI("温度骤降,热锅结束 (耗时%d秒 温度=%d)", (int)((aos_now_ms() - fsm->state_time)/1000), temp_mid);
+            switch_fsm_state(fsm, jian_heat_oil);
+        }
     }
-    else if (cur_temp < 210)
+    else if (temp_mid < 210*10) //temp_cur
     {
-        change_multivalve_gear(0x04, INPUT_RIGHT); //火力1档加热//火力调为4档
+        temp_arrivate = true;
+        if (!fire_4_switch_flag)
+        {
+            LOG_BAI("煎模式: 切换火力到4档 (%d)", temp_mid);
+            change_multivalve_gear(0x04, INPUT_RIGHT); //火力调为4档
+            fire_4_switch_flag = true;
+            fire_1_switch_flag = false;
+            fire_7_switch_flag = false;
+        }
+
+        if (!is_remind) 
+        {
+            char* tips = "请倒油";
+            udp_voice_write(tips, strlen(tips), 50);
+            is_remind = true;
+        }
     }
     else
     {
-        change_multivalve_gear(0x07, INPUT_RIGHT); //火力1档加热//火力调为7档
-    }
-
-    if ((aos_now_ms() - temp_value_last.time) >= (10*1000))
-    {        
-        temp_value_t temp_value_now = {
-            .time = aos_now_ms(),
-            .temp = cur_temp
-        };
-        uint16_t middle_temp = findMedian(aux_handle->temp_array, ARRAY_DATA_SIZE);
-        double slope = calculateSlope(temp_value_now, temp_value_last);        
-        LOG_BAI("煎模式: *****热锅里判断状态*****(%d %d) (%d %d) %d %f", temp_value_last.time, temp_value_last.temp, temp_value_now.time, temp_value_now.temp, middle_temp, slope);
-
-        if ((slope > 3.0) && (middle_temp <= 2000))
+        temp_arrivate = true;
+        if (!fire_7_switch_flag)
         {
-            switch_fsm_state(fsm, mode_jian_func_heat_oil);
+            LOG_BAI("煎模式: 切换火力到7档 (%d)", temp_mid);
+            change_multivalve_gear(0x07, INPUT_RIGHT); //火力调为7档
+            fire_7_switch_flag = true;
+            fire_1_switch_flag = false;
+            fire_4_switch_flag = false;
         }
-
-        if ((slope < 0.2) && (middle_temp <= 1700))
-        {
-            switch_fsm_state(fsm, mode_jian_func_heat_food);
-        }
-
-        temp_value_last = temp_value_now;
-    }
-
-    uint16_t middle_temp = findMedian(aux_handle->temp_array, ARRAY_DATA_SIZE);
-    if (is_fsm_timeout(fsm, 60*1000) && (middle_temp <= 1500))
-    {
-        LOG_BAI("煎模式: *****热锅状态时间太长*****(%d秒 %d度) (%d %d) %d %f", (aos_now_ms() - fsm->state_time) / 1000, middle_temp/10);
-        switch_fsm_state(fsm, mode_jian_func_heat_oil);
-    }
-}
-
-void mode_jian_func_heat_oil(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
-{
-    static temp_value_t temp_value_last = {0x00};
-    uint16_t cur_temp = aux_handle->temp_array[ARRAY_DATA_SIZE - 1];
-
-    if (fsm->state_time == 0)
-    {
-        LOG_BAI("*****进入热油*****");
-        set_fsm_time(fsm);
-        temp_value_last = save_current_temp(cur_temp);
-    }
-
-    //一直处于热锅阶段里面
-    if (cur_temp < 200)
-    {
-        change_multivalve_gear(0x01, INPUT_RIGHT); //火力1档加热
-    }
-    else if (cur_temp < 210)
-    {
-        change_multivalve_gear(0x04, INPUT_RIGHT); //火力1档加热//火力调为4档
-    }
-    else
-    {
-        change_multivalve_gear(0x07, INPUT_RIGHT); //火力1档加热//火力调为7档
     }
 
     if ((aos_now_ms() - temp_value_last.time) >= (10*1000))
     {
         temp_value_t temp_value_now = {
             .time = aos_now_ms(),
-            .temp = cur_temp
+            .temp = temp_mid //temp_cur
         };
-        uint16_t middle_temp = findMedian(aux_handle->temp_array, ARRAY_DATA_SIZE);
-        double slope = calculateSlope(temp_value_now, temp_value_last);
-        LOG_BAI("煎模式: *****热油里判断状态*****(%d %d) (%d %d) %d %f", temp_value_last.time, temp_value_last.temp, temp_value_now.time, temp_value_now.temp, middle_temp, slope);
 
-        if ((slope < 0.2) && (middle_temp <= 1700))
-        {
-            switch_fsm_state(fsm, mode_jian_func_heat_food);
-        }
+        double slope = calculateSlope(temp_value_last, temp_value_now);
+        LOG_BAI("煎模式: *****热锅里判断状态(10秒一次)***** (%d %d) ===> (%d %d) 斜率=%f · 最新温度=%d · 中位数温度=%d", (int)(temp_value_last.time/1000), temp_value_last.temp, (int)(temp_value_now.time/1000), temp_value_now.temp, slope, temp_cur, temp_mid);
+
+        // if ((slope > 30.0) && (temp_mid <= 150*10))
+        // {
+        //     switch_fsm_state(fsm, jian_heat_oil);
+        //     return;
+        // }
+        // else if ((slope < 5.0) && (temp_mid <= 170*10))
+        // {
+        //     switch_fsm_state(fsm, jian_heat_food);
+        //     return;
+        // }
 
         temp_value_last = temp_value_now;
     }
+
+    if ((aos_now_ms() - temp_value_last_5.time) >= (5*1000))
+    {
+        temp_value_t temp_value_now = {
+            .time = aos_now_ms(),
+            .temp = temp_mid //temp_cur
+        };
+
+        double slope = calculateSlope(temp_value_last_5, temp_value_now);
+        LOG_BAI("煎模式: *****热锅里判断状态(5秒一次)***** (%d %d) ===> (%d %d) 斜率=%f · 最新温度=%d · 中位数温度=%d", (int)(temp_value_last_5.time/1000), temp_value_last_5.temp, (int)(temp_value_now.time/1000), temp_value_now.temp, slope, temp_cur, temp_mid);
+
+        // if ((slope > 30.0) && (temp_mid <= 150*10))
+        // {
+        //     switch_fsm_state(fsm, jian_heat_oil);
+        //     return;
+        // }
+        // else if ((slope < 5.0) && (temp_mid <= 170*10))
+        // {
+        //     switch_fsm_state(fsm, jian_heat_food);
+        //     return;
+        // }
+
+        temp_value_last_5 = temp_value_now;
+    }
+
+    // if (is_fsm_timeout(fsm, 60*1000) && (temp_mid <= 1500))
+    // {
+    //     LOG_BAI("煎模式: *****热锅状态时间太长*****(热锅时间=%d秒 中位数温度=%d度)", (aos_now_ms() - fsm->state_time) / 1000, temp_mid/10);
+    //     switch_fsm_state(fsm, jian_heat_oil);
+    // }
+}
+
+void jian_heat_oil(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
+{
+    static temp_value_t temp_value_last = {0x00};
+    uint16_t temp_cur = aux_handle->temp_array[ARRAY_DATA_SIZE - 1];            // 最新温度 
+    uint16_t temp_mid = findMedian(aux_handle->temp_array, ARRAY_DATA_SIZE);    // 中位数温度
+
+    static bool is_remind = false;
+    static bool fire_1_switch_flag = false;
+    static bool fire_4_switch_flag = false;
+    static bool fire_7_switch_flag = false;
+    static bool temp_arrivate = false;
+
+
+    if (fsm->state_time == 0)
+    {
+        udp_voice_write("开始热油", strlen("开始热油"), 50);
+        LOG_BAI("煎模式: 进入热油");
+        set_fsm_time(fsm);
+        temp_value_last = save_current_temp(temp_mid);
+    }
+
+    //一直处于热锅阶段里面
+    if (temp_mid < 200*10)
+    {
+        if (!fire_1_switch_flag)
+        {
+            LOG_BAI("煎模式: 切换火力到1档 (%d)", temp_mid);
+            change_multivalve_gear(0x01, INPUT_RIGHT); //火力1档加热
+            fire_1_switch_flag = true;
+            fire_4_switch_flag = false;
+            fire_7_switch_flag = false;
+        }
+
+        if (temp_arrivate && (temp_mid < 100*10))
+        {
+            printf_cur_temp_array(aux_handle);
+            LOG_BAI("温度骤降,热油结束 (耗时%d秒 温度=%d)", (int)((aos_now_ms() - fsm->state_time)/1000), temp_mid);
+            //LOG_BAI("温度骤降,热油结束 (耗时%lu秒 温度=%d)", ((aos_now_ms() - fsm->state_time)/1000), temp_mid);
+            switch_fsm_state(fsm, jian_heat_food);
+        }
+    }
+    else if (temp_mid < 210*10)
+    {
+        temp_arrivate = true;
+        if (!fire_4_switch_flag)
+        {
+            LOG_BAI("煎模式: 切换火力到4档 (%d)", temp_mid);
+            change_multivalve_gear(0x04, INPUT_RIGHT); //火力调为4档
+            fire_4_switch_flag = true;
+            fire_1_switch_flag = false;
+            fire_7_switch_flag = false;
+        }
+
+        if (!is_remind) 
+        {
+            char* tips = "请下食材";
+            udp_voice_write(tips, strlen(tips), 50);
+            is_remind = true;
+        }
+    }
+    else
+    {
+        temp_arrivate = true;
+        if (!fire_7_switch_flag)
+        {
+            LOG_BAI("煎模式: 切换火力到7档 (%d)", temp_mid);
+            change_multivalve_gear(0x07, INPUT_RIGHT); //火力调为7档
+            fire_7_switch_flag = true;
+            fire_1_switch_flag = false;
+            fire_4_switch_flag = false;
+        }
+    }
+
+    // if ((aos_now_ms() - temp_value_last.time) >= (10*1000))
+    // {
+    //     temp_value_t temp_value_now = {
+    //         .time = aos_now_ms(),
+    //         .temp = cur_temp
+    //     };
+    //     uint16_t middle_temp = findMedian(aux_handle->temp_array, ARRAY_DATA_SIZE);
+    //     double slope = calculateSlope(temp_value_last, temp_value_now);
+    //     LOG_BAI("煎模式: *****热油里判断状态*****(%d %d) (%d %d) %d %f", temp_value_last.time, temp_value_last.temp, temp_value_now.time, temp_value_now.temp, middle_temp, slope);
+
+    //     if ((slope < 0.2) && (middle_temp <= 1700))
+    //     {
+    //         switch_fsm_state(fsm, jian_heat_food);
+    //     }
+
+    //     temp_value_last = temp_value_now;
+    // }
 
 
 /* 
     if (is_fsm_timeout(fsm, 4000))
     {
-        switch_fsm_state(fsm, mode_jian_func_heat_food);
+        switch_fsm_state(fsm, jian_heat_food);
     }  */
 }
 
-void mode_jian_func_heat_food(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
+void jian_heat_food(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
 {
     static temp_value_t temp_value_last = {0x00};
-    uint16_t cur_temp = aux_handle->temp_array[ARRAY_DATA_SIZE - 1];
+    uint16_t temp_cur = aux_handle->temp_array[ARRAY_DATA_SIZE - 1];            // 最新温度 
+    uint16_t temp_mid = findMedian(aux_handle->temp_array, ARRAY_DATA_SIZE);    // 中位数温度
+    static bool fire_3_switch_flag = false;
+    static bool fire_4_switch_flag = false;
 
     if (fsm->state_time == 0)
     {
-        LOG_BAI("*****进入热菜*****");
+        udp_voice_write("开始煎食材", strlen("开始煎食材"), 50);
+        LOG_BAI("煎模式: 进入煎食材");
         set_fsm_time(fsm);
-        temp_value_last = save_current_temp(cur_temp);
+        temp_value_last = save_current_temp(temp_mid);
+
+        fire_3_switch_flag = false;
+        fire_4_switch_flag = false;
     }
 
-    if (cur_temp < 100)
+    if (temp_mid < (100*10))
     {
-        change_multivalve_gear(0x03, INPUT_RIGHT);
+        if (!fire_3_switch_flag)
+        {
+            LOG_BAI("煎模式: 切换火力到3档 (%d)", temp_mid);
+            change_multivalve_gear(0x03, INPUT_RIGHT);
+            fire_3_switch_flag = true;
+            fire_4_switch_flag = false;
+        }
     }
     else
     {
-        change_multivalve_gear(0x04, INPUT_RIGHT);
+        if (!fire_4_switch_flag)
+        {
+            LOG_BAI("煎模式: 切换火力到4档 (%d)", temp_mid);
+            change_multivalve_gear(0x04, INPUT_RIGHT);
+            fire_4_switch_flag = true;
+            fire_3_switch_flag = false;
+        } 
     }
 
 
@@ -1453,14 +1758,12 @@ void mode_jian_func_heat_food(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
  */
 void mode_jian_func(aux_handle_t *aux_handle)
 {
-    //无法二次启动煎模式
-    static func_ptr_fsm_t fsm_jian = {0x00};  //缺少一个初始化的功能:开启煎模式，然后手动结束，然后又开启煎模式，就会有问题，因为没有初始化
-    if (fsm_jian.state_func == NULL)
+    if (aux_handle->fsm_jian.state_func == NULL)  //state_func为空，说明是首次启动状态机，赋一个默认状态
     {
-        switch_fsm_state(&fsm_jian, mode_jian_func_heat_pan);
+        switch_fsm_state(&aux_handle->fsm_jian, jian_heat_pan);
     }
 
-    run_fsm(&fsm_jian, aux_handle); //(*(fsm_jian.state_func))(&fsm_jian);
+    run_fsm(&aux_handle->fsm_jian, aux_handle); //(*(aux_handle->fsm_jian.state_func))(&aux_handle->fsm_jian, aux_handle);
 }
 
 /**
@@ -1470,7 +1773,8 @@ void mode_jian_func(aux_handle_t *aux_handle)
  */
 void aux_cook_reset(aux_handle_t *aux_handle)
 {
-    return;
+    memset(&aux_handle->fsm_jian, 0x00, sizeof(aux_handle->fsm_jian));
+    memset(&aux_handle->fsm_chao, 0x00, sizeof(aux_handle->fsm_chao));
 }
 
 /**
@@ -1496,19 +1800,23 @@ void aux_assistant_input(enum INPUT_DIR input_dir, unsigned short temp, unsigned
             time_mem = aos_now_ms();
             LOG_BAI("目标温度=%d, 环境温度=%d  (辅助烹饪未启动)", temp/10, environment_temp/10);
         }
-
+        cook_aux_init(INPUT_RIGHT);
+        extern void aux_cook_reset(aux_handle_t *aux_handle);
+        aux_cook_reset(aux_handle);
         return;
     }
 
     if(aux_handle->pan_fire_status == 1)
     {
         LOG_RED("发生移锅小火，退出辅助烹饪");
+        udp_voice_write("发生移锅小火，退出辅助烹饪", strlen("发生移锅小火，退出辅助烹饪"), 50);
         cook_aux_init(INPUT_RIGHT);
         aux_exit_cb(AUX_ERROR_EXIT);
         return;
     }
 
     aux_handle->aux_total_tick++;
+    LOG_BAI("最新温度 = %d", temp);
     aux_temp_save(aux_handle, temp);
 
     // if(aux_handle->aux_total_tick >= MAX_FIRE_TIME)
@@ -1522,6 +1830,10 @@ void aux_assistant_input(enum INPUT_DIR input_dir, unsigned short temp, unsigned
     {
         LOG_BAI("temp data is not enough,func return");
         return;
+    }
+    else
+    {
+        printf_cur_temp_array(aux_handle);
     }
     
     switch(aux_handle->aux_type)

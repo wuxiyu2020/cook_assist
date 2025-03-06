@@ -163,34 +163,34 @@ int Mars_uartrecv_callback(uint8_t port, void *msg)
     {
         if (mars_uart_prop_process(recv_msg))
         {
-            char *property_payload = NULL;
-            mars_property_data(NULL, &property_payload);
+            // char *property_payload = NULL;
+            // mars_property_data(NULL, &property_payload);
 
-            if(property_payload != NULL)
-            {
-                ret = IOT_Linkkit_Report(mars_template_ctx->master_devid, ITM_MSG_POST_PROPERTY, (uint8_t *)property_payload, strlen(property_payload));
-                if (ret == FAIL_RETURN)
-                {
-                    LOGE("mars", "IOT_Linkkit_Report 失败!!!!!!(ret=%d)", ret);                    
-                }
-                else                
-                {
-                    LOGI("mars", "IOT_Linkkit_Report 上报 (MsgID = %d)", ret);
-                    if (!is_report_finish)
-                    {
-                        is_report_finish = true;
-                        LOGI("mars", "设备上电后首次上报完成");
-                    }
-                }
+            // if(property_payload != NULL)
+            // {
+            //     ret = IOT_Linkkit_Report(mars_template_ctx->master_devid, ITM_MSG_POST_PROPERTY, (uint8_t *)property_payload, strlen(property_payload));
+            //     if (ret == FAIL_RETURN)
+            //     {
+            //         LOGE("mars", "IOT_Linkkit_Report 失败!!!!!!(ret=%d)", ret);                    
+            //     }
+            //     else                
+            //     {
+            //         LOGI("mars", "IOT_Linkkit_Report 上报 (MsgID = %d)", ret);
+            //         if (!is_report_finish)
+            //         {
+            //             is_report_finish = true;
+            //             LOGI("mars", "设备上电后首次上报完成");
+            //         }
+            //     }
                 
-                cJSON_free(property_payload);
-            }
-            else
-            {
-                LOGE("mars", "本次数据未上报!!!!!! (因为 mars_property_data 执行失败)");
-            }
+            //     cJSON_free(property_payload);
+            // }
+            // else
+            // {
+            //     LOGE("mars", "本次数据未上报!!!!!! (因为 mars_property_data 执行失败)");
+            // }
 
-            property_payload = NULL;
+            // property_payload = NULL;
         }
     }
     else

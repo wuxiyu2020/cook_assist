@@ -229,11 +229,11 @@ int awss_notify_dev_info(int type, int count)
         } else if (type == AWSS_NOTIFY_DEV_RAND_SIGN) {
 
         }
-        awss_info("topic:%s\n", topic);
+        //awss_info("topic:%s\n", topic);
         awss_debug("payload:%s\n", buf);
         for (i = 0; i < count; i ++) {
             int ret = awss_cmp_coap_send(buf, strlen(buf), &notify_sa, topic, cb, &g_notify_msg_id[type]);
-            awss_info("coap send notify %s", ret == 0 ? "success" : "fail");
+            //awss_info("coap send notify %s", ret == 0 ? "success" : "fail");
             if (count > 1)
                 os_msleep(200 + 100 * i);
 

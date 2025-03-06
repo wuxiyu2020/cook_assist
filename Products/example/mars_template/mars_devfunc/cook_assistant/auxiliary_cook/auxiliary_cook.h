@@ -22,6 +22,12 @@
         }                                           						                                                    \
     } while( 0 )
 
+typedef void (*state_func_t)(void* fsm, void* user);
+typedef struct {
+    uint64_t state_time;
+    state_func_t state_func;
+}func_ptr_fsm_t;
+
 typedef enum
 {
     IDLE,
@@ -92,6 +98,12 @@ typedef struct
     unsigned char first_reach_set_temp_flag;    //首次达到目标温度标志
     unsigned char first_hot_pot_flag;           //
     unsigned char first_put_food_flag;          //首次放入食材标志位
+
+    /*煎模式相关参数*/
+    func_ptr_fsm_t fsm_jian;
+
+    /*炒模式相关参数*/
+    func_ptr_fsm_t fsm_chao;
 
     
 } aux_handle_t;

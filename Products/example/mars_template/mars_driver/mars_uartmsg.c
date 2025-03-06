@@ -298,6 +298,12 @@ void mars_uartmsg_process_thread(void *argv)
             time_get = aos_now_ms();
         }
 
+
+        extern int udp_voice_send();
+        udp_voice_send();
+        extern void send_multivalve_gear(int dir);
+        send_multivalve_gear(1);
+
         aos_msleep(50);
     }
 
@@ -508,7 +514,7 @@ static void mars_uart_process_cb(uint8_t port, void *buf, uint32_t len, uint32_t
                                     sprintf(tmp, "%02X", u8_buf[msg_head+a]);
                                     strcat(log_buf, tmp);
                                 }
-                                mars_cloud_logpost(log_buf, strlen(log_buf));
+                                //mars_cloud_logpost(log_buf, strlen(log_buf));
                                 aos_free(log_buf);
                             }
                         }
@@ -639,7 +645,7 @@ void Mars_uartmsg_send(uint16_t cmd, uint16_t seq, void *buf, uint16_t buf_len, 
                     strcat(log_buf, tmp);
                 }
                 //strcat(log_buf, M_CLOUD_LOG_UARTTAIL);
-                mars_cloud_logpost(log_buf, strlen(log_buf));
+                //mars_cloud_logpost(log_buf, strlen(log_buf));
                 aos_free(log_buf);
                 log_buf = NULL;
             }

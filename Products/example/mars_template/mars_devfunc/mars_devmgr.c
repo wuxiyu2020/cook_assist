@@ -424,7 +424,7 @@ bool mars_uart_prop_process(uartmsg_que_t *msg)
         {
             extern uint8_t dry_fire_state;
             //LOGW("mars", "收到日志上报属性: 0x%02X", msg->msg_buf[i]);
-            printf("dry_fire_state:%d\r\n",dry_fire_state);
+            //printf("dry_fire_state:%d\r\n",dry_fire_state);
             if (msg->msg_buf[i] == 0xC0)
                 i+=2;
             else if (msg->msg_buf[i] == 0xC1)

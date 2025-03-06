@@ -253,7 +253,7 @@ void mars_cloud_logpost(char *log_msg, int log_len)
                     ifException,
                     aos_get_app_version());
 
-            LOGI("mars", "日志上报发送: %s", http_log_msg);
+            //LOGI("mars", "日志上报发送: %s", http_log_msg);
 
             log_http.http_method = HTTP_LOGPOST;
             log_http.msg_str = http_log_msg;
