@@ -199,7 +199,8 @@
             "hal_boot2.h": "c",
             "scoped_allocator": "c",
             "iot_import_udp.h": "c",
-            "fstream": "c"
+            "fstream": "c",
+            "cstdint": "c"
         },
 		"C_Cpp.default.defines": [
 			"TG7100CEVB",

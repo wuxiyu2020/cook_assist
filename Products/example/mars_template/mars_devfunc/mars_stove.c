@@ -909,9 +909,8 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
                     }
                     else
                     {
-                        char* tips = "退出辅助烹饪";
-                        udp_voice_write(tips, strlen(tips), 50);
-                        LOG_BAI("*****%s*****", tips);
+                        udp_voice_write("退出辅助烹饪", strlen("退出辅助烹饪"), 50);
+                        LOG_BAI("退出辅助烹饪");
                     }
                     
                     mars_template_ctx->status.AuxCookLeftTime = mars_template_ctx->status.AuxCookSetTime;
@@ -1597,7 +1596,7 @@ void mars_sensor_uartMsgFromSlave(uartmsg_que_t *msg,
                 set_multivalve_gear(mars_template_ctx->status.MultiValveGear, 1);
             }
 
-            //mars_template_ctx->sensor_reportflg |= SVALID_BIT(msg->msg_buf[(*index)]);
+            LOGW("mars", "********当前火力档位: %d****************", msg->msg_buf[(*index)+1]);
             (*index)+=1;
             break;
         }
