@@ -1,5 +1,5 @@
 /*
- * @Description  : 
+ * @Description  :
  * @Author       : zhoubw
  * @Date         : 2022-06-06 17:18:46
  * @LastEditors: Zhouxc
@@ -62,7 +62,7 @@ void mars_sync_tempture(uint16_t tar_temp, uint16_t env_temp)
 {
     uint8_t buf[] = {prop_ROilTemp, tar_temp/256, tar_temp%256, prop_REnvTemp, env_temp/256, env_temp%256};
     Mars_uartmsg_send(cmd_store, uart_get_seq_mid(),  buf, sizeof(buf), 0);
-    //LOGI("mars", "下发右灶温度: 目标温度=%d℃ 环境温度=%d℃", tar_temp, env_temp);
+    LOGI("mars", "下发右灶温度: 目标温度=%d℃ 环境温度=%d℃", tar_temp, env_temp);
 }
 
 void mars_store_netstatus()
@@ -82,7 +82,7 @@ void mars_store_swversion(void)
 }
 
 void mars_devmngr_getstatus(void *arg1, void *arg2)
-{    
+{
     uint8_t buf[] = {0};
     Mars_uartmsg_send(cmd_get, uart_get_seq_mid(),  &buf, 1, 3);
     LOGI("mars", "请求电控板全属性");
@@ -97,7 +97,7 @@ void mars_store_dry_fire(uint8_t val)
         Mars_uartmsg_send(cmd_set, uart_get_seq_mid(), &buf1, sizeof(buf1), 3);
         LOGI("mars","now systemPower is off,inform on");
     }
-    
+
     uint8_t buf2[] = {0x2E, val};
     Mars_uartmsg_send(cmd_store, uart_get_seq_mid(), &buf2, sizeof(buf2), 3);
     LOGI("mars", "下发干烧状态: %d", val);
@@ -109,7 +109,7 @@ static void process_property_diff(dev_status_t* p1, dev_status_t* p2)
     // {
     //     LOGE("mars", "解析后, 全属性结构体没有发生变化!!!");
     //     return;
-    // }    
+    // }
 }
 
 bool mars_uart_prop_process(uartmsg_que_t *msg)
@@ -131,7 +131,7 @@ bool mars_uart_prop_process(uartmsg_que_t *msg)
         LOGE("mars", "未知命令码");
     }
 
-    mars_template_ctx_t *mars_template_ctx = mars_dm_get_ctx();//烹饪助手温度上报消息直接处理 
+    mars_template_ctx_t *mars_template_ctx = mars_dm_get_ctx();//烹饪助手温度上报消息直接处理
     dev_status_t dev_status_last = g_user_example_ctx.status;
     uint8_t nak    = 0;
     bool report_en = false;
@@ -148,13 +148,13 @@ bool mars_uart_prop_process(uartmsg_que_t *msg)
                     if (mars_template_ctx->status.ElcSWVersion != msg->msg_buf[i+1])
                     {
                         LOGW("mars", "解析属性0x%02X: 显示板软件变化(0x%02X - 0x%02X)", msg->msg_buf[i], mars_template_ctx->status.ElcSWVersion, msg->msg_buf[i+1]);
-                        report_en = true;                        
+                        report_en = true;
                         mars_template_ctx->status.ElcSWVersion = msg->msg_buf[i+1];
 
                         extern bool mars_ota_inited(void);
                         if (mars_ota_inited())
                         {
-                           mars_ota_module_1_init(); 
+                           mars_ota_module_1_init();
                         }
                     }
 
@@ -167,7 +167,7 @@ bool mars_uart_prop_process(uartmsg_que_t *msg)
                     if (mars_template_ctx->status.ElcHWVersion != msg->msg_buf[i+1])
                     {
                         LOGW("mars", "解析属性0x%02X: 显示板硬件变化(0x%02X - 0x%02X)", msg->msg_buf[i], mars_template_ctx->status.ElcHWVersion, msg->msg_buf[i+1]);
-                        report_en = true;                        
+                        report_en = true;
                         mars_template_ctx->status.ElcHWVersion = msg->msg_buf[i+1];
                     }
 
@@ -176,13 +176,13 @@ bool mars_uart_prop_process(uartmsg_que_t *msg)
                     break;
                 }
                 case prop_PwrSWVersion:
-                {   
+                {
                     if (mars_template_ctx->status.PwrSWVersion != msg->msg_buf[i+1])
                     {
                         LOGW("mars", "解析属性0x%02X: 电源板软件变化(0x%02X - 0x%02X)", msg->msg_buf[i], mars_template_ctx->status.PwrSWVersion, msg->msg_buf[i+1]);
-                        report_en = true;                        
+                        report_en = true;
                         mars_template_ctx->status.PwrSWVersion = msg->msg_buf[i+1];
-                    }  
+                    }
 
                     mars_template_ctx->common_reportflg |= VALID_BIT(msg->msg_buf[(i)]);
                     i+=1;
@@ -193,9 +193,9 @@ bool mars_uart_prop_process(uartmsg_que_t *msg)
                     if (mars_template_ctx->status.PwrHWVersion != msg->msg_buf[i+1])
                     {
                         LOGW("mars", "解析属性0x%02X: 电源板硬件变化(0x%02X - 0x%02X)", msg->msg_buf[i], mars_template_ctx->status.PwrHWVersion, msg->msg_buf[i+1]);
-                        report_en = true;                        
+                        report_en = true;
                         mars_template_ctx->status.PwrHWVersion = msg->msg_buf[i+1];
-                    } 
+                    }
 
                     mars_template_ctx->common_reportflg |= VALID_BIT(msg->msg_buf[(i)]);
                     i+=1;
@@ -218,7 +218,7 @@ bool mars_uart_prop_process(uartmsg_que_t *msg)
                             set_smart_smoke_switch(g_user_cook_assist.ZnpySwitch);
                             is_asssist_change = true;
                         }
-                        
+
                         if (mars_template_ctx->status.SysPower == 0)
                         {
                             if (g_user_cook_assist.RAuxiliarySwitch == 1)
@@ -265,7 +265,7 @@ bool mars_uart_prop_process(uartmsg_que_t *msg)
                         }
                     }
 
-                    mars_template_ctx->common_reportflg |= VALID_BIT(msg->msg_buf[(i)]);                    
+                    mars_template_ctx->common_reportflg |= VALID_BIT(msg->msg_buf[(i)]);
                     i+=1;
                     break;
                 }
@@ -292,9 +292,9 @@ bool mars_uart_prop_process(uartmsg_que_t *msg)
                         extern void timer_func_awss_finish(void *arg1, void *arg2);
                         LOGW("mars", "串口命令: 退出蓝牙配网");
                         if (is_awss_state())
-                            timer_func_awss_finish(NULL, NULL);                        
-                        else                        
-                            LOGE("mars", "未处于配网,本命令忽略");                    
+                            timer_func_awss_finish(NULL, NULL);
+                        else
+                            LOGE("mars", "未处于配网,本命令忽略");
                     }
                     i+=1;
                     break;
@@ -309,7 +309,7 @@ bool mars_uart_prop_process(uartmsg_que_t *msg)
                         mars_template_ctx->status.ErrCode = ErrCodeNow;
                     }
 
-                    mars_template_ctx->common_reportflg |= VALID_BIT(msg->msg_buf[(i)]);                    
+                    mars_template_ctx->common_reportflg |= VALID_BIT(msg->msg_buf[(i)]);
                     i+=4;
                     break;
                 }
@@ -318,7 +318,7 @@ bool mars_uart_prop_process(uartmsg_que_t *msg)
                     if (mars_template_ctx->status.ErrCodeShow != msg->msg_buf[i+1])
                     {
                         LOGW("mars", "解析属性0x%02X: 当前故障码变化(%d - %d)", msg->msg_buf[i], mars_template_ctx->status.ErrCodeShow, msg->msg_buf[i+1]);
-                        report_en = true; 
+                        report_en = true;
                         mars_template_ctx->status.ErrCodeShow = msg->msg_buf[i+1];
 
                         if (msg->msg_buf[i+1] != 0)
@@ -353,7 +353,7 @@ bool mars_uart_prop_process(uartmsg_que_t *msg)
                     return false;
                     break;
             }
-        } 
+        }
         else if ((msg->msg_buf[i] >= PROP_INTEGRATED_STOVE_BEIGN && msg->msg_buf[i] <= PROP_INTEGRATED_STOVE_END) || (msg->msg_buf[i] >= prop_AuxCook && msg->msg_buf[i] <= prop_AuxCookLeftTime))
         {
             mars_stove_uartMsgFromSlave(msg, mars_template_ctx, &i, &report_en, &nak);
@@ -428,8 +428,8 @@ bool mars_uart_prop_process(uartmsg_que_t *msg)
             if (msg->msg_buf[i] == 0xC0)
                 i+=2;
             else if (msg->msg_buf[i] == 0xC1)
-            {     
-                printf("msg1:%d,msg2:%d\r\n",msg->msg_buf[i+1],msg->msg_buf[i+2]);          
+            {
+                printf("msg1:%d,msg2:%d\r\n",msg->msg_buf[i+1],msg->msg_buf[i+2]);
                 if (dry_fire_state == 0x01 && (msg->msg_buf[i+1] != 0x00 || msg->msg_buf[i+2] != 0x00))
                 {
                     mars_beer_control(0x00);
@@ -437,7 +437,7 @@ bool mars_uart_prop_process(uartmsg_que_t *msg)
                     exit_dryburn_status(1, 0);
                 }
                 i+=2;
-            }                
+            }
             else if (msg->msg_buf[i] == 0xC2)
                 i+=2;
             else if (msg->msg_buf[i] == 0xC3)
@@ -449,7 +449,7 @@ bool mars_uart_prop_process(uartmsg_que_t *msg)
             else if (msg->msg_buf[i] == 0xC6)
                 i+=2;
             else if (msg->msg_buf[i] == 0xC7)
-                i+=2;            
+                i+=2;
             else if (msg->msg_buf[i] == 0xC8)
                 i+=12;
             else if (msg->msg_buf[i] == 0xC9)
@@ -469,7 +469,7 @@ bool mars_uart_prop_process(uartmsg_que_t *msg)
             LOGE("mars", "收到未知属性,停止解析!!! (位置=%d 属性=0x%02X)", i, msg->msg_buf[i]);
             report_en = false;
             break;
-        }  
+        }
     }
 
     process_property_diff(&dev_status_last, &g_user_example_ctx.status);
@@ -511,13 +511,13 @@ int Mars_property_set_callback(cJSON *root, cJSON *item, void *msg)
     mars_template_ctx_t *mars_template_ctx = mars_dm_get_ctx();
     is_ca_para = false;
 
-    if ((item = cJSON_GetObjectItem(root, "SysPower")) != NULL && cJSON_IsNumber(item)) 
+    if ((item = cJSON_GetObjectItem(root, "SysPower")) != NULL && cJSON_IsNumber(item))
     {
         buf_setmsg[buf_len++] = prop_SysPower;
         buf_setmsg[buf_len++] = item->valueint;
     }
 
-    if ((item = cJSON_GetObjectItem(root, "OtaCmdPushType")) != NULL && cJSON_IsNumber(item)) 
+    if ((item = cJSON_GetObjectItem(root, "OtaCmdPushType")) != NULL && cJSON_IsNumber(item))
     {
         mars_template_ctx->status.OTAbyAPP = item->valueint;
         LOGI("mars", "app下发升级类型: %d (0-静默升级 1-app触发)", item->valueint);
@@ -558,14 +558,14 @@ void Mars_property_get_callback(char *property_name, cJSON *response)
     if (NULL == property_name || NULL == response){
         return -1;
     }
-    
+
     mars_template_ctx_t *mars_template_ctx = mars_dm_get_ctx();
 
     if (strcmp("WifiMac", property_name) == 0)
     {
         cJSON_AddStringToObject(response, "WifiMac", mars_template_ctx->macStr);
     }
-    else if (strcmp("SysPower", property_name) == 0) 
+    else if (strcmp("SysPower", property_name) == 0)
     {
         cJSON_AddNumberToObject(response, "SysPower", mars_template_ctx->status.SysPower);
     }
@@ -613,7 +613,7 @@ void mars_property_data(char* msg_seq, char **str_out)
         if (NULL != msg_seq)
         {
             cJSON *item_csr = cJSON_CreateObject();
-            if (item_csr == NULL) 
+            if (item_csr == NULL)
             {
                 cJSON_Delete(proot);
                 return;
@@ -703,7 +703,7 @@ void mars_property_data(char* msg_seq, char **str_out)
             }
         }
         t_mars_template_ctx->common_reportflg = 0;
-        
+
 #if MARS_STOVE
         mars_stove_changeReport(proot, t_mars_template_ctx);
 #endif
@@ -770,7 +770,7 @@ int mars_dev_event_callback(input_event_t *event_id, void *param)
             break;
         }
         case MARS_EVENT_FACTORY_RESET:
-        {            
+        {
             break;
         }
         default:
@@ -881,7 +881,7 @@ void report_property_timer_start(void)
 }
 
 void mars_devmgr_afterConnect(void)
-{   
+{
     mars_devmngr_getstatus(NULL, NULL);
 
     get_cloud_time(NULL, NULL);
@@ -897,13 +897,13 @@ void mars_devmgr_afterConnect(void)
 int decimal_bcd_code(int decimal)
 {
 	int sum = 0;  //sum返回的BCD码
- 
+
 	for (int i = 0; decimal > 0; i++)
 	{
-		sum |= ((decimal % 10 ) << ( 4*i)); 
+		sum |= ((decimal % 10 ) << ( 4*i));
 		decimal /= 10;
 	}
- 
+
 	return sum;
 }
 
@@ -919,7 +919,7 @@ int mars_devmgr_init(void)
     // tmp_version[5] = 0;
     // g_user_example_ctx.status.WifiSWVersion[0] = (uint8_t)atoi(tmp_version);
     // g_user_example_ctx.status.WifiSWVersion[1] = (uint8_t)atoi(tmp_version+2);
-    // g_user_example_ctx.status.WifiSWVersion[2] = (uint8_t)atoi(tmp_version+4); 
+    // g_user_example_ctx.status.WifiSWVersion[2] = (uint8_t)atoi(tmp_version+4);
 
     char tmp_version[10] ={0};
     strncpy(tmp_version, aos_get_app_version(), sizeof(tmp_version)); //like this: "1.4"
@@ -933,6 +933,6 @@ int mars_devmgr_init(void)
     mars_ca_init();
     sync_wifi_property();
     mars_devmngr_getstatus(NULL, NULL);
-    
+
     return 0;
 }

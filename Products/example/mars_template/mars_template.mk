@@ -8,7 +8,7 @@ CONFIG_SERVER_ENV ?= ONLINE
 # AWSS MODE: AWSS_ONESHOT_MODE, AWSS_DEV_AP_MODE, AWSS_BT_MODE
 CONFIG_AWSS_MODE ?= AWSS_BT_MODE
 
-CONFIG_FIRMWARE_VERSION = 0.6
+CONFIG_FIRMWARE_VERSION = 0.1
 # CONFIG_DEV_MODEL = E70BCZ01
 
 #1:support multi module ota test 0:not support
@@ -39,7 +39,7 @@ $(NAME)_SOURCES := vendor.c \
 # $(NAME)_SOURCES += $(wildcard mars_devfunc/*.c)
 # $(NAME)_SOURCES += $(wildcard common/*.c)
 
-$(NAME)_SOURCES += common/device_state_manger.c 
+$(NAME)_SOURCES += common/device_state_manger.c
 
 $(NAME)_SOURCES += mars_driver/mars_cloud.c\
                    mars_driver/mars_atcmd.c \
@@ -69,7 +69,7 @@ $(NAME)_SOURCES += mars_devfunc/mars_stove.c \
                    mars_devfunc/cook_assistant/ring_buffer.c \
                    mars_devfunc/cook_assistant/fsyd.c \
                    mars_devfunc/cook_assistant/cloud.c \
-                   mars_devfunc/irt102m/drv_sensor_irt102m.c 
+                   mars_devfunc/irt102m/drv_sensor_irt102m.c
 
 ifeq ($(CONFIG_SUPPORT_MULTI_MODULE_OTA), 1)
 $(NAME)_SOURCES += mars_driver/mars_ota_module.c

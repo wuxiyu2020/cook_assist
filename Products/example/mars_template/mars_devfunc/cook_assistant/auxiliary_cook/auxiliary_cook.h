@@ -1,5 +1,5 @@
-/*** 
- * @Description  : 
+/***
+ * @Description  :
  * @Author       : zhouxc
  * @Date         : 2024-10-22 13:40:14
  * @LastEditors  : zhouxc
@@ -61,12 +61,12 @@ typedef struct
     unsigned char aux_type;                         //辅助烹饪模式
     unsigned int aux_set_time;                      //辅助烹饪煮模式设置时间
     unsigned int aux_set_temp;                      //辅助烹饪炸模式设置温度
-    
+
     unsigned char aux_multivalve_gear;              //当前八段阀的档位
     unsigned char aux_aim_multivalve_gear;          //目标八段阀的档位
     unsigned int aux_total_tick;                    //进入辅助烹饪的总时间
     unsigned int current_average_temp;                   //当前的平均温度
-    unsigned short now_temp;                        //当前温度    
+    unsigned short now_temp;                        //当前温度
     unsigned short temp_array[ARRAY_DATA_SIZE];     //温度数组
     unsigned char temp_size;                        //温度数组中的数据量
     unsigned short average_temp_array[ARRAY_DATA_SIZE]; //存储平均温度的数组
@@ -105,7 +105,7 @@ typedef struct
     /*炒模式相关参数*/
     func_ptr_fsm_t fsm_chao;
 
-    
+
 } aux_handle_t;
 
 // typedef enum AUXCOOKMODE
@@ -125,6 +125,17 @@ void register_multivalve_cb(int(*cb)(enum INPUT_DIR input_dir, int gear));
 void register_auxclose_fire_cb(int (*cb)(enum INPUT_DIR input_dir));
 void register_auxcount_down(int (*cb)(unsigned char remaintime));
 void register_aux_exit_cb(int (*aux_exit_cb)(enum aux_exit_type));
- 
+
+void jian_heat_pan(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle);  //热锅
+void jian_heat_oil(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle);  //热油
+void jian_heat_food(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle); //煎食物
+
+void chao_heat_pan(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle);      //热锅
+void chao_heat_oil(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle);      //热油
+void chao_heat_onion(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle);    //葱姜蒜
+void chao_heat_food(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle);     //炒食物
+
+
+
 
 #endif

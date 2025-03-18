@@ -1,5 +1,5 @@
 /*
- * @Description  : 
+ * @Description  :
  * @Author       : zhoubw
  * @Date         : 2022-08-17 16:57:42
  * @LastEditors: Zhouxc
@@ -22,7 +22,7 @@
 #if 1
 #include "mars_devfunc/irt102m/drv_sensor_irt102m.h"
 #include "mars_devfunc/irt102m/Lib_Irt102mDataCalibra.h"
-static uint8_t i2c_temp_display_cont = 0;   // i2C烹饪助手，下发头显温度值计数，4次发1次	
+static uint8_t i2c_temp_display_cont = 0;   // i2C烹饪助手，下发头显温度值计数，4次发1次
 #endif
 
 #if MARS_STOVE
@@ -64,7 +64,7 @@ void AuxTimer_function(void *arg)
         LOGI("mars","lefttime:%d",mars_template_ctx->status.AuxCookLeftTime_s);
         if(mars_template_ctx->status.AuxCookLeftTime_s != 0)
         {
-            mars_template_ctx->status.AuxCookLeftTime_s -= 1; 
+            mars_template_ctx->status.AuxCookLeftTime_s -= 1;
         }
         if(mars_template_ctx->status.AuxCookLeftTime_s < 0)
         {
@@ -209,7 +209,7 @@ void static m_tempreport_pre(int16_t i16_tempvalue, mars_template_ctx_t *mars_te
             }
         }
     }
-    
+
     if (g_user_cook_assist.CookingCurveSwitch &&
          ((mars_template_ctx->status.RStoveStatus && TEMP_PACK_SUM <= g_stove_temp_cnt) || (!mars_template_ctx->status.RStoveStatus && 0 != g_stove_temp_cnt)))
     {
@@ -225,7 +225,7 @@ void static m_tempreport_pre(int16_t i16_tempvalue, mars_template_ctx_t *mars_te
 
     static uint32_t Send_temp = 0;          //用于计算采集到平均温度发送给显示板
     static uint8_t Send_temp_count = 0;     //当前采集到的平均温度
-    if (g_user_cook_assist.ROilTempSwitch)
+    //if (g_user_cook_assist.ROilTempSwitch)
     {
 /*         //3s下发一次当前的温度，为了方式跳动偏差，此处采取平均值的方式
         if ((time_temp_mqtt == 0) || (aos_now_ms() - time_temp_mqtt) >= (1*5000))
@@ -244,8 +244,8 @@ void static m_tempreport_pre(int16_t i16_tempvalue, mars_template_ctx_t *mars_te
             {
                 mars_sync_tempture(i16_tempvalue, mars_template_ctx->status.REnvTemp);
                 LOGI("mars","瞬时Send_temp:%d,平均后Send_time:%d\r\n",i16_tempvalue,Send_temp);
-            } 
-           
+            }
+
             //mars_sync_tempture(Send_temp, mars_template_ctx->status.REnvTemp);
             Send_temp = 0;
             Send_temp_count = 0;
@@ -257,9 +257,9 @@ void static m_tempreport_pre(int16_t i16_tempvalue, mars_template_ctx_t *mars_te
             Send_temp_count++;
         } */
 
-        if ((time_temp_mqtt == 0) || (aos_now_ms() - time_temp_mqtt) >= (10*1000) || (i16_tempvalue != temp_last))
+        if ((i16_tempvalue != temp_last) && ((aos_now_ms() - time_temp_mqtt) > (1*1000)))
         {
-            //mars_sync_tempture(i16_tempvalue, mars_template_ctx->status.REnvTemp);
+            mars_sync_tempture(i16_tempvalue, mars_template_ctx->status.REnvTemp);
             temp_last = i16_tempvalue;
             time_temp_mqtt = aos_now_ms();
         }
@@ -322,19 +322,19 @@ void static m_tempreport_fgs(int16_t i16_tempvalue, mars_template_ctx_t *mars_te
     }
 }
 
-void mars_stove_cookassistant(uartmsg_que_t *msg, 
+void mars_stove_cookassistant(uartmsg_que_t *msg,
                                 mars_template_ctx_t *mars_template_ctx)
 {
     int16_t i16_tempvalue = (int16_t)(msg->msg_buf[1] << 8) | (int16_t)msg->msg_buf[2];
     mars_template_ctx->status.ROilTemp = i16_tempvalue;
     i16_tempvalue = (int16_t)(msg->msg_buf[4] << 8) | (int16_t)msg->msg_buf[5];
     mars_template_ctx->status.REnvTemp = i16_tempvalue;
-    cook_assistant_input(INPUT_RIGHT, 
+    cook_assistant_input(INPUT_RIGHT,
                         mars_template_ctx->status.ROilTemp * 10,
                         mars_template_ctx->status.REnvTemp * 10);
     prepare_gear_change_task();
 
-    if ((g_user_cook_assist.RAuxiliarySwitch == 1) && (RAuxiliaryBeer == 0)) 
+    if ((g_user_cook_assist.RAuxiliarySwitch == 1) && (RAuxiliaryBeer == 0))
     {
         if (mars_template_ctx->status.ROilTemp >= g_user_cook_assist.RAuxiliaryTemp)
         {
@@ -347,8 +347,8 @@ void mars_stove_cookassistant(uartmsg_que_t *msg,
     m_tempreport_pre(mars_template_ctx->status.ROilTemp, mars_template_ctx);
 }
 
-void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg, 
-                                mars_template_ctx_t *mars_template_ctx, 
+void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
+                                mars_template_ctx_t *mars_template_ctx,
                                 uint16_t *index, bool *report_en, uint8_t *nak)
 {
     switch (msg->msg_buf[(*index)])
@@ -358,7 +358,7 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
             if (mars_template_ctx->status.LStoveStatus != msg->msg_buf[(*index)+1])
             {
                 LOGI("mars", "解析属性0x%02X: 左灶状态变化(%d - %d)", msg->msg_buf[(*index)], mars_template_ctx->status.LStoveStatus, msg->msg_buf[(*index)+1]);
-                *report_en = true;                        
+                *report_en = true;
                 mars_template_ctx->status.LStoveStatus = msg->msg_buf[(*index)+1];
             }
 
@@ -372,7 +372,7 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
             if (mars_template_ctx->status.RStoveStatus != msg->msg_buf[(*index)+1])
             {
                 LOGI("mars", "解析属性0x%02X: 右灶状态变化(%d - %d)", msg->msg_buf[(*index)], mars_template_ctx->status.RStoveStatus, msg->msg_buf[(*index)+1]);
-                *report_en = true;                        
+                *report_en = true;
                 mars_template_ctx->status.RStoveStatus = msg->msg_buf[(*index)+1];
 
                 if (msg->msg_buf[(*index)+1] == 0x01)  //打开右灶
@@ -421,7 +421,7 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
             if (mars_template_ctx->status.HoodStoveLink != msg->msg_buf[(*index)+1])
             {
                 LOGI("mars", "解析属性0x%02X: 烟灶联动发生变化(%d - %d)", msg->msg_buf[(*index)], mars_template_ctx->status.HoodStoveLink, msg->msg_buf[(*index)+1]);
-                *report_en = true;                        
+                *report_en = true;
                 mars_template_ctx->status.HoodStoveLink = msg->msg_buf[(*index)+1];
             }
 
@@ -435,7 +435,7 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
             if (mars_template_ctx->status.HoodLightLink != msg->msg_buf[(*index)+1])
             {
                 LOGI("mars", "解析属性0x%02X: 烟灯联动发生变化(%d - %d)", msg->msg_buf[(*index)], mars_template_ctx->status.HoodLightLink, msg->msg_buf[(*index)+1]);
-                *report_en = true;                        
+                *report_en = true;
                 mars_template_ctx->status.HoodLightLink = msg->msg_buf[(*index)+1];
             }
 
@@ -450,21 +450,21 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
             if (mars_template_ctx->status.LightStoveLink != msg->msg_buf[(*index)+1])
             {
                 LOGI("mars", "解析属性0x%02X: 灯灶联动发生变化(%d - %d)", msg->msg_buf[(*index)], mars_template_ctx->status.LightStoveLink, msg->msg_buf[(*index)+1]);
-                *report_en = true;                        
+                *report_en = true;
                 mars_template_ctx->status.LightStoveLink = msg->msg_buf[(*index)+1];
             }
 
             mars_template_ctx->stove_reportflg |= VALID_BIT(msg->msg_buf[(*index)]);
             (*index)+=1;
-            break;        
+            break;
         }
 
         case prop_RStoveTimingState:
-        {            
+        {
             if (mars_template_ctx->status.RStoveTimingState != msg->msg_buf[(*index)+1])
             {
                 LOGI("mars", "解析属性0x%02X: 右灶定时状态变化(%d - %d)", msg->msg_buf[(*index)], mars_template_ctx->status.RStoveTimingState, msg->msg_buf[(*index)+1]);
-                *report_en = true;                        
+                *report_en = true;
                 mars_template_ctx->status.RStoveTimingState = msg->msg_buf[(*index)+1];
 
                 if (msg->msg_buf[(*index)+1] == 0x03)
@@ -484,7 +484,7 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
             if (mars_template_ctx->status.LStoveTimingState != msg->msg_buf[(*index)+1])
             {
                 LOGI("mars", "解析属性0x%02X: 左灶定时状态变化(%d - %d)", msg->msg_buf[(*index)], mars_template_ctx->status.LStoveTimingState, msg->msg_buf[(*index)+1]);
-                *report_en = true;                        
+                *report_en = true;
                 mars_template_ctx->status.LStoveTimingState = msg->msg_buf[(*index)+1];
 
                 if (msg->msg_buf[(*index)+1] == 0x03)
@@ -504,7 +504,7 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
             if (mars_template_ctx->status.RStoveTimingSet != msg->msg_buf[(*index)+1])
             {
                 LOGI("mars", "解析属性0x%02X: 右炤定时时间变化(%d - %d)", msg->msg_buf[(*index)], mars_template_ctx->status.RStoveTimingSet, msg->msg_buf[(*index)+1]);
-                *report_en = true;                        
+                *report_en = true;
                 mars_template_ctx->status.RStoveTimingSet = msg->msg_buf[(*index)+1];
             }
 
@@ -518,7 +518,7 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
             if (mars_template_ctx->status.LStoveTimingSet != msg->msg_buf[(*index)+1])
             {
                 LOGI("mars", "解析属性0x%02X: 左炤定时时间变化(%d - %d)", msg->msg_buf[(*index)], mars_template_ctx->status.LStoveTimingSet, msg->msg_buf[(*index)+1]);
-                *report_en = true;                        
+                *report_en = true;
                 mars_template_ctx->status.LStoveTimingSet = msg->msg_buf[(*index)+1];
             }
 
@@ -532,7 +532,7 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
             if (mars_template_ctx->status.RStoveTimingLeft != msg->msg_buf[(*index)+1])
             {
                 LOGI("mars", "解析属性0x%02X: 右灶定时剩余时间变化(%d - %d)", msg->msg_buf[(*index)], mars_template_ctx->status.RStoveTimingLeft, msg->msg_buf[(*index)+1]);
-                *report_en = true;                        
+                *report_en = true;
                 mars_template_ctx->status.RStoveTimingLeft = msg->msg_buf[(*index)+1];
             }
 
@@ -546,7 +546,7 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
             if (mars_template_ctx->status.LStoveTimingLeft != msg->msg_buf[(*index)+1])
             {
                 LOGI("mars", "解析属性0x%02X: 左灶定时剩余时间变化(%d - %d)", msg->msg_buf[(*index)], mars_template_ctx->status.LStoveTimingLeft, msg->msg_buf[(*index)+1]);
-                *report_en = true;                        
+                *report_en = true;
                 mars_template_ctx->status.LStoveTimingLeft = msg->msg_buf[(*index)+1];
             }
 
@@ -560,10 +560,10 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
             LOGI("mars","%d->%d",mars_template_ctx->status.StoveClose_fire_state, msg->msg_buf[(*index)+1]);
             if(mars_template_ctx->status.StoveClose_fire_state != msg->msg_buf[(*index)+1])
             {
-                
+
                 if ((msg->msg_buf[(*index)+1] >= 0x00) && (msg->msg_buf[(*index)+1] <= 0x03))
                 {
-                    mars_template_ctx->status.StoveClose_fire_state = msg->msg_buf[(*index)+1];   
+                    mars_template_ctx->status.StoveClose_fire_state = msg->msg_buf[(*index)+1];
                     extern uint8_t dry_fire_state;
                     if (dry_fire_state == 0x01)
                     {
@@ -572,9 +572,9 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
                     }
 
                     //灶具关火动作也进行上报，注意平台物模型配置只接受1-3，传0的时候会默认丢失，我们只需要关注是否关火，本地正常传0，否则没有清零的地方，云平台可以继续保持配置（不接受0）
-                    mars_template_ctx->status.HoodFireTurnOff = msg->msg_buf[(*index)+1]; 
+                    mars_template_ctx->status.HoodFireTurnOff = msg->msg_buf[(*index)+1];
                     LOGI("mars","[%d]属性解析到的结果是:%d*(原始值),%d(结构体值)",msg->msg_buf[(*index)],msg->msg_buf[(*index)+1],mars_template_ctx->status.HoodFireTurnOff);
-                    *report_en = true;                     
+                    *report_en = true;
                 }
                 else
                 {
@@ -599,7 +599,7 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
             if (mars_template_ctx->status.RStoveSwitch != msg->msg_buf[(*index)+1])
             {
                 LOGI("mars", "解析属性0x%02X: 右灶通断阀变化(%d - %d)", msg->msg_buf[(*index)], mars_template_ctx->status.RStoveSwitch, msg->msg_buf[(*index)+1]);
-                *report_en = true;                        
+                *report_en = true;
                 mars_template_ctx->status.RStoveSwitch = msg->msg_buf[(*index)+1];
             }
 
@@ -611,7 +611,7 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
         case prop_HoodSpeedKey:
         {
             if (msg->msg_buf[(*index)+1] == 0x01)
-            {                
+            {
                 if (g_user_cook_assist.ZnpySwitch == 1)
                 {
                     g_user_cook_assist.ZnpyOneExit = 1;  //处于单次退出
@@ -630,8 +630,8 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
             if (mars_template_ctx->status.HoodSpeed != msg->msg_buf[(*index)+1])
             {
                 LOGI("mars", "解析属性0x%02X: 烟机档位变化(%d - %d)", msg->msg_buf[(*index)], mars_template_ctx->status.HoodSpeed, msg->msg_buf[(*index)+1]);
-                *report_en = true;                        
-                mars_template_ctx->status.HoodSpeed = msg->msg_buf[(*index)+1];                
+                *report_en = true;
+                mars_template_ctx->status.HoodSpeed = msg->msg_buf[(*index)+1];
             }
 
             mars_template_ctx->stove_reportflg |= VALID_BIT(msg->msg_buf[(*index)]);
@@ -644,7 +644,7 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
             if (mars_template_ctx->status.HoodLight != msg->msg_buf[(*index)+1])
             {
                 LOGI("mars", "解析属性0x%02X: 烟机照明变化(%d - %d)", msg->msg_buf[(*index)], mars_template_ctx->status.HoodLight, msg->msg_buf[(*index)+1]);
-                *report_en = true;                        
+                *report_en = true;
                 mars_template_ctx->status.HoodLight = msg->msg_buf[(*index)+1];
             }
 
@@ -658,7 +658,7 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
             if (mars_template_ctx->status.HoodOffLeftTime != msg->msg_buf[(*index)+1])
             {
                 LOGI("mars", "解析属性0x%02X: 烟机延时关闭剩余时间变化(%d - %d)", msg->msg_buf[(*index)], mars_template_ctx->status.HoodOffLeftTime, msg->msg_buf[(*index)+1]);
-                *report_en = true;                        
+                *report_en = true;
                 mars_template_ctx->status.HoodOffLeftTime = msg->msg_buf[(*index)+1];
             }
 
@@ -672,7 +672,7 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
             if (mars_template_ctx->status.HoodOffTimer != msg->msg_buf[(*index)+1])
             {
                 LOGI("mars", "解析属性0x%02X: 烟机延时关闭设定时间(%d - %d)", msg->msg_buf[(*index)], mars_template_ctx->status.HoodOffTimer, msg->msg_buf[(*index)+1]);
-                *report_en = true;                        
+                *report_en = true;
                 mars_template_ctx->status.HoodOffTimer = msg->msg_buf[(*index)+1];
             }
 
@@ -686,25 +686,25 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
             if (mars_template_ctx->status.HoodTurnOffRemind != msg->msg_buf[(*index)+1])
             {
                 LOGI("mars", "解析属性0x%02X: 烟灶延时关闭提醒变化(%d - %d)", msg->msg_buf[(*index)], mars_template_ctx->status.HoodTurnOffRemind, msg->msg_buf[(*index)+1]);
-                *report_en = true;                        
+                *report_en = true;
                 mars_template_ctx->status.HoodTurnOffRemind = msg->msg_buf[(*index)+1];
             }
 
             mars_template_ctx->stove_reportflg |= VALID_BIT(msg->msg_buf[(*index)]);
             (*index)+=1;
             break;
-        } 
+        }
 
         case prop_OilBoxState:
         {
             if (mars_template_ctx->status.OilBoxState != msg->msg_buf[(*index)+1])
             {
                 LOGI("mars", "解析属性0x%02X: 集油盒状态变化(%d - %d)", msg->msg_buf[(*index)], mars_template_ctx->status.OilBoxState, msg->msg_buf[(*index)+1]);
-                *report_en = true;                        
+                *report_en = true;
                 mars_template_ctx->status.OilBoxState = msg->msg_buf[(*index)+1];
 
                 if (msg->msg_buf[(*index)+1] == 0x01)
-                { 
+                {
                     LOGI("mars", "推送事件: 集油盒满提醒推送OilBoxPush!");
                     user_post_event_json(EVENT_LEFT_STOVE_OILBOX_REMIND);
                 }
@@ -720,11 +720,11 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
             // if (g_user_cook_assist.ZnpySwitch != msg->msg_buf[(*index)+1])
             // {
             //     LOGI("mars", "解析属性0x%02X: 智能排烟开关变化(%d - %d)", msg->msg_buf[(*index)], g_user_cook_assist.ZnpySwitch, msg->msg_buf[(*index)+1]);
-            //     *report_en = true;      
-            //     is_asssist_change = true;                  
+            //     *report_en = true;
+            //     is_asssist_change = true;
             //     g_user_cook_assist.ZnpySwitch = msg->msg_buf[(*index)+1];
             //     set_smart_smoke_switch(g_user_cook_assist.ZnpySwitch);
-            // }   
+            // }
 
             if (g_user_cook_assist.ZnpySwitch != msg->msg_buf[(*index)+1])
             {
@@ -754,11 +754,11 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
                     set_smart_smoke_switch(g_user_cook_assist.ZnpySwitch);
                 }
 
-                *report_en = true;      
-                is_asssist_change = true;                  
+                *report_en = true;
+                is_asssist_change = true;
                 //g_user_cook_assist.ZnpySwitch = msg->msg_buf[(*index)+1];
                 //set_smart_smoke_switch(g_user_cook_assist.ZnpySwitch);
-            }          
+            }
 
             (*index)+=1;
             break;
@@ -769,8 +769,8 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
             if (g_user_cook_assist.RAuxiliarySwitch != msg->msg_buf[(*index)+1])
             {
                 LOGI("mars", "解析属性0x%02X: 精准控温开关变化(%d - %d)", msg->msg_buf[(*index)], g_user_cook_assist.RAuxiliarySwitch, msg->msg_buf[(*index)+1]);
-                *report_en = true;             
-                is_asssist_change = true;           
+                *report_en = true;
+                is_asssist_change = true;
                 g_user_cook_assist.RAuxiliarySwitch = msg->msg_buf[(*index)+1];
                 set_temp_control_switch(g_user_cook_assist.RAuxiliarySwitch, INPUT_RIGHT);
             }
@@ -785,8 +785,8 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
             if (g_user_cook_assist.RAuxiliaryTemp != tempvalue)
             {
                 LOGI("mars", "解析属性0x%02X: 精准控温温度变化(%d - %d)", msg->msg_buf[(*index)], g_user_cook_assist.RAuxiliaryTemp, tempvalue);
-                *report_en = true;             
-                is_asssist_change = true;           
+                *report_en = true;
+                is_asssist_change = true;
                 g_user_cook_assist.RAuxiliaryTemp = tempvalue;
                 g_user_cook_assist.ROilTempSwitch = 1;
                 set_temp_control_target_temp(g_user_cook_assist.RAuxiliaryTemp, INPUT_RIGHT);
@@ -801,8 +801,8 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
             if (g_user_cook_assist.RMovePotLowHeatSwitch != msg->msg_buf[(*index)+1])
             {
                 LOGI("mars", "解析属性0x%02X: 右灶移锅小火开关变化(%d - %d)", msg->msg_buf[(*index)], g_user_cook_assist.RMovePotLowHeatSwitch, msg->msg_buf[(*index)+1]);
-                *report_en = true;             
-                is_asssist_change = true;           
+                *report_en = true;
+                is_asssist_change = true;
                 g_user_cook_assist.RMovePotLowHeatSwitch = msg->msg_buf[(*index)+1];
                 g_user_cook_assist.RDryFireSwitch = msg->msg_buf[(*index)+1];
                 set_pan_fire_switch(g_user_cook_assist.RMovePotLowHeatSwitch, INPUT_RIGHT);
@@ -882,7 +882,7 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
                     Mars_uartmsg_send(cmd_store,uart_get_seq_mid(),buf_setmsg,buf_len,3);
 
                 }
-                
+
                 //设置为炖模式，但是没有设置炖的时间，错误设定
                 if(AuxCookMode == 0x02 && AuxTime == 0x00)
                 {
@@ -912,7 +912,7 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
                         udp_voice_write("退出辅助烹饪", strlen("退出辅助烹饪"), 50);
                         LOG_BAI("退出辅助烹饪");
                     }
-                    
+
                     mars_template_ctx->status.AuxCookLeftTime = mars_template_ctx->status.AuxCookSetTime;
                     mars_template_ctx->status.AuxCookLeftTime_s = mars_template_ctx->status.AuxCookSetTime * 60;
 
@@ -923,7 +923,7 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
                         buf_setmsg[buf_len++] = prop_AuxCookLeftTime;
                         buf_setmsg[buf_len++] = mars_template_ctx->status.AuxCookSetTime;
                         LOGI("mars","一键烹饪模式时间设置为：%d",mars_template_ctx->status.AuxCookSetTime);
-                        
+
                         Mars_uartmsg_send(cmd_store,uart_get_seq_mid(),buf_setmsg,buf_len,3);
                     }
                     if(mars_template_ctx->status.AuxCookSetTemp != 0)
@@ -949,7 +949,7 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
         // {
 
         // }
-        
+
         // case prop_AuxCookLeftTime
         // {
 
@@ -960,7 +960,7 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
             (*index)+=1;
             break;
         }
-        
+
         case 0x2E:
         {
             (*index)+=1;
@@ -985,7 +985,7 @@ void mars_stove_setToSlave(cJSON *root, cJSON *item, mars_template_ctx_t *mars_t
         buf_setmsg[(*buf_len)++] = prop_HoodStoveLink;//烟灶联动
         buf_setmsg[(*buf_len)++] = item->valueint;
     }
-    
+
     if ((item = cJSON_GetObjectItem(root, "HoodLightLink")) != NULL && cJSON_IsNumber(item)) {
         buf_setmsg[(*buf_len)++] = prop_HoodLightLink;//烟机照明联动
         buf_setmsg[(*buf_len)++] = item->valueint;
@@ -1054,7 +1054,7 @@ void mars_stove_setToSlave(cJSON *root, cJSON *item, mars_template_ctx_t *mars_t
         buf_setmsg[(*buf_len)++] = item->valueint;
     }
 
-    if ((item = cJSON_GetObjectItem(root, "SmartSmokeSwitch")) != NULL && cJSON_IsNumber(item)) 
+    if ((item = cJSON_GetObjectItem(root, "SmartSmokeSwitch")) != NULL && cJSON_IsNumber(item))
     {
         LOGI("mars", "平台下发: 智能排烟开关 = %d", item->valueint);
 
@@ -1074,7 +1074,7 @@ void mars_stove_setToSlave(cJSON *root, cJSON *item, mars_template_ctx_t *mars_t
         is_ca_para = true;
     }
 
-    if ((item = cJSON_GetObjectItem(root, "RAuxiliarySwitch")) != NULL && cJSON_IsNumber(item)) 
+    if ((item = cJSON_GetObjectItem(root, "RAuxiliarySwitch")) != NULL && cJSON_IsNumber(item))
     {
         LOGI("mars", "平台下发: 右灶控温开关 = %d", item->valueint);
         g_user_cook_assist.RAuxiliarySwitch = item->valueint;
@@ -1083,7 +1083,7 @@ void mars_stove_setToSlave(cJSON *root, cJSON *item, mars_template_ctx_t *mars_t
         is_ca_para = true;
     }
 
-    if ((item = cJSON_GetObjectItem(root, "RAuxiliaryTemp")) != NULL && cJSON_IsNumber(item)) 
+    if ((item = cJSON_GetObjectItem(root, "RAuxiliaryTemp")) != NULL && cJSON_IsNumber(item))
     {
         LOGI("mars", "平台下发: 右灶控温温度 = %d", item->valueint);
         g_user_cook_assist.RAuxiliaryTemp = item->valueint;
@@ -1091,10 +1091,10 @@ void mars_stove_setToSlave(cJSON *root, cJSON *item, mars_template_ctx_t *mars_t
         is_ca_para = true;
     }
 
-    if ((item = cJSON_GetObjectItem(root, "RMovePotLowHeatSwitch")) != NULL && cJSON_IsNumber(item)) 
+    if ((item = cJSON_GetObjectItem(root, "RMovePotLowHeatSwitch")) != NULL && cJSON_IsNumber(item))
     {
         LOGI("mars", "平台下发: 右灶移锅小火开关 = %d", item->valueint);
-        g_user_cook_assist.RMovePotLowHeatSwitch = item->valueint;        
+        g_user_cook_assist.RMovePotLowHeatSwitch = item->valueint;
         set_pan_fire_switch(g_user_cook_assist.RMovePotLowHeatSwitch, INPUT_RIGHT);
         is_ca_para = true;
     }
@@ -1412,16 +1412,16 @@ void IRT102mCallBack(SENSOR_STATUS_ENUM status, float TargetTemper1, float Envir
     // if (time == 0 || (aos_now_ms() - time) >= 5000)
     // {
     //     ktask_t *task = krhino_cur_task_get();
-    //     uint64_t min_free = 0; 
+    //     uint64_t min_free = 0;
     //     krhino_task_stack_min_free(task, &min_free);
-    //     uint64_t cur_free = 0; 
+    //     uint64_t cur_free = 0;
     //     //krhino_task_stack_cur_free(task, &cur_free);
     //     printf("IRT102mCallBack: name=%s prio=%d task_stack=%ld\r\n", task->task_name, task->prio, task->stack_size);
     //     printf("IRT102mCallBack: min_free=%lu cur_free=%lu \r\n", min_free, cur_free);
     //     krhino_backtrace_now();
     //     //krhino_backtrace_task(task->task_name);
     //     time = aos_now_ms();
-        
+
     // }
 
 
@@ -1459,13 +1459,13 @@ void IRT102mCallBack(SENSOR_STATUS_ENUM status, float TargetTemper1, float Envir
     mars_template_ctx->status.ROilTemp = IRT102mTempRange((int16_t)TargetTemperFit[1]);
     mars_template_ctx->status.REnvTemp = IRT102mTempRange((int16_t)EnvirTemper2);
 
-	// LOGI("mars", "int16_t转换赋值后: L_Temp(%d), L_env(%d), R_Temp(%d), R_env(%d)", 
-    // mars_template_ctx->status.LOilTemp, 
+	// LOGI("mars", "int16_t转换赋值后: L_Temp(%d), L_env(%d), R_Temp(%d), R_env(%d)",
+    // mars_template_ctx->status.LOilTemp,
     // mars_template_ctx->status.LEnvTemp,
     // mars_template_ctx->status.ROilTemp,
     // mars_template_ctx->status.REnvTemp);
     // irt_data_t data = {
-    //     .ROilTemp = mars_template_ctx->status.ROilTemp, 
+    //     .ROilTemp = mars_template_ctx->status.ROilTemp,
     //     .REnvTemp = mars_template_ctx->status.REnvTemp
     //     };
     // if (ring_buffer_is_full(&ring_buffer_irt_data))
@@ -1480,7 +1480,7 @@ void IRT102mCallBack(SENSOR_STATUS_ENUM status, float TargetTemper1, float Envir
     cook_assistant_input(INPUT_RIGHT, (unsigned short)mars_template_ctx->status.ROilTemp * 10,(unsigned short)mars_template_ctx->status.REnvTemp * 10);
     aux_assistant_input(INPUT_RIGHT,(unsigned short)mars_template_ctx->status.ROilTemp * 10,(unsigned short)mars_template_ctx->status.REnvTemp * 10);
     // cook_assistant_input(INPUT_RIGHT, (unsigned short)TargetTemper1 * 10, (unsigned short)EnvirTemper1 * 10);
-	
+
     prepare_gear_change_task();
 
     m_tempreport_pre(mars_template_ctx->status.ROilTemp, mars_template_ctx);
@@ -1517,7 +1517,7 @@ static void init_cook_assistant_thread()
 }
 #endif
 int mars_irtInit(void)
-{	
+{
     //init_cook_assistant_thread();
     LOGI("mars", "I²C红外测温模组固件版本: ");
     Lib_VersionInfoPrintf();
@@ -1535,13 +1535,13 @@ int mars_irtInit(void)
     else
     {
         LOGE("mars", "error: I²C红外测温模组未标定!!!!!!");
-    }    
-	
+    }
+
     Driver_IRT102mInit(250, IRT102mCallBack);
 }
 
-void mars_sensor_uartMsgFromSlave(uartmsg_que_t *msg, 
-                                mars_template_ctx_t *mars_template_ctx, 
+void mars_sensor_uartMsgFromSlave(uartmsg_que_t *msg,
+                                mars_template_ctx_t *mars_template_ctx,
                                 uint16_t *index, bool *report_en, uint8_t *nak)
 {
     switch (msg->msg_buf[(*index)])
@@ -1551,7 +1551,7 @@ void mars_sensor_uartMsgFromSlave(uartmsg_que_t *msg,
             if (mars_template_ctx->status.RadarGear != msg->msg_buf[(*index)+1])
             {
                 LOGI("mars", "解析属性0x%02X: Radar_changed雷达档位变化(%d - %d)", msg->msg_buf[(*index)], mars_template_ctx->status.RadarGear, msg->msg_buf[(*index)+1]);
-                //*report_en = true;                        
+                //*report_en = true;
                 mars_template_ctx->status.RadarGear = msg->msg_buf[(*index)+1];
             }
 
@@ -1576,7 +1576,7 @@ void mars_sensor_uartMsgFromSlave(uartmsg_que_t *msg,
             if (mars_template_ctx->status.RadarSign != msg->msg_buf[(*index)+1])
             {
                 LOGI("mars", "解析属性0x%02X: Radar_changed雷达信号变化(%d - %d)", msg->msg_buf[(*index)], mars_template_ctx->status.RadarSign, msg->msg_buf[(*index)+1]);
-                //*report_en = true;                         
+                //*report_en = true;
                 mars_template_ctx->status.RadarSign = msg->msg_buf[(*index)+1];
             }
 
@@ -1589,14 +1589,16 @@ void mars_sensor_uartMsgFromSlave(uartmsg_que_t *msg,
             if (mars_template_ctx->status.MultiValveGear != msg->msg_buf[(*index)+1])
             {
                 LOGI("mars", "解析属性0x%02X: 八段阀火力发生变化(%d - %d)", msg->msg_buf[(*index)], mars_template_ctx->status.MultiValveGear, msg->msg_buf[(*index)+1]);
-                //*report_en = true;                        
+                //*report_en = true;
                 mars_template_ctx->status.MultiValveGear = msg->msg_buf[(*index)+1];
-                
+
                 //通知辅助烹饪当前八段阀档位
                 set_multivalve_gear(mars_template_ctx->status.MultiValveGear, 1);
             }
 
-            LOGW("mars", "********当前火力档位: %d****************", msg->msg_buf[(*index)+1]);
+            LOGW("mars", "**************** 当前火力档位: %d ************************", msg->msg_buf[(*index)+1]);
+            LOGW("mars", "**************** 当前火力档位: %d ************************", msg->msg_buf[(*index)+1]);
+            LOGW("mars", "**************** 当前火力档位: %d ************************", msg->msg_buf[(*index)+1]);
             (*index)+=1;
             break;
         }
@@ -1605,7 +1607,7 @@ void mars_sensor_uartMsgFromSlave(uartmsg_que_t *msg,
             if (mars_template_ctx->status.MultiVaveStatus != msg->msg_buf[(*index)+1])
             {
                 LOGI("mars", "解析属性0x%02X: 八段阀处于最大挡位置变化(%d - %d)", msg->msg_buf[(*index)], mars_template_ctx->status.MultiVaveStatus, msg->msg_buf[(*index)+1]);
-                //*report_en = true;                        
+                //*report_en = true;
                 mars_template_ctx->status.MultiVaveStatus = msg->msg_buf[(*index)+1];
             }
 
@@ -1634,7 +1636,7 @@ void mars_sensor_changeReport(cJSON *proot, mars_template_ctx_t *mars_template_c
                     cJSON_AddNumberToObject(proot, "MutivalveGear", mars_template_ctx->status.MultiValveGear);
                     break;
                 }
-                
+
                 default:
                 {
                     LOGI("mars","now not support this prop report[0x%02X]",index);

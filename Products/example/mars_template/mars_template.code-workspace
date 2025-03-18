@@ -221,7 +221,8 @@
 			"CONFIG_BT_CONN",
 			//"DEFAULT_LOG_LEVEL_DEBUG",
             "LOG_SIMPLE",
-            "DEBUG"
+            "DEBUG",
+            "CFG_STDLIB_ENABLE"
 		],
         "makefile.extensionOutputFolder": "./.vscode",
         "workbench.colorCustomizations": {
