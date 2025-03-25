@@ -271,7 +271,7 @@ int linkkit_main(void *paras)
 
     if ((0 == strlen(master_meta_info.product_key)) || (0 == strlen(master_meta_info.device_name))
             || (0 == strlen(master_meta_info.device_secret)) || (0 == strlen(master_meta_info.product_secret))) {
-        LOGI("mars", "No device meta info found...\n");
+        LOGI("mars", "No device meta info found...");
         while (1) {
             aos_msleep(USER_EXAMPLE_YIELD_TIMEOUT_MS);
         }

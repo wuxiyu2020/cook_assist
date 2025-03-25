@@ -53,9 +53,11 @@ static aos_task_t task_msg_process;
 static aos_task_t task_property_report;
 static aos_task_t task_linkkit_reset;
 static aos_task_t task_reboot_device;
+int temp_dd = 5;
 
 static char linkkit_started = 0;
 static char awss_dev_ap_started = 0;
+int a;
 
 extern int init_awss_flag(void);
 
@@ -147,7 +149,7 @@ static void wifi_service_event(input_event_t *event, void *priv_data)
     {
         netmgr_ap_config_t config;
         memset(&config, 0, sizeof(netmgr_ap_config_t));
-        netmgr_get_ap_config(&config);              
+        netmgr_get_ap_config(&config);
         char ipStr[16] = {0x00};
         netmgr_wifi_get_ip(ipStr);
         LOGI("mars", "wifi连接进程: 已分配ip (热点名称=%s 分配ip=%s)\r\n", config.ssid, ipStr);
