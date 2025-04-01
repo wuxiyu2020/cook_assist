@@ -16,8 +16,8 @@ extern "C"
 #include "ring_buffer.h"
 #include "cook_wrapper.h"
 
-//#define BOIL_ENABLE             //水开小火
-//#define DRYBURN_ENABLE          //防干烧
+//#define BOIL_ENABLE               //水开小火
+#define DRYBURN_ENABLE              //防干烧
 // #define FIRE_CONFIRM_ENABLE
 #define STATE_JUDGE_DATA_SIZE (10)
 // #define INPUT_DATA_HZ (4)

@@ -904,12 +904,12 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
                     {
                         char voice_buff[64] = {0x00};
                         snprintf(voice_buff, sizeof(voice_buff), "%s启动", AuxMode[mars_template_ctx->status.AuxCookMode]);
-                        udp_voice_write(voice_buff, strlen(voice_buff), 50);
+                        udp_voice_write_sync(voice_buff, strlen(voice_buff), 50);
                         LOGI("mars","%s", voice_buff);
                     }
                     else
                     {
-                        udp_voice_write("退出辅助烹饪", strlen("退出辅助烹饪"), 50);
+                        udp_voice_write_sync("退出辅助烹饪", strlen("退出辅助烹饪"), 50);
                         LOG_BAI("退出辅助烹饪");
                     }
 

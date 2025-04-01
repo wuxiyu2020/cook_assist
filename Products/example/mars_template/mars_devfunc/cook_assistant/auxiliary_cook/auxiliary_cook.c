@@ -1142,10 +1142,9 @@ void mode_fry_func(aux_handle_t *aux_handle)
     //记录刚进入模式时的温度
     static unsigned int enter_mode_temp = 0;
     static bool gentle_flag = false;
-    LOG_BAI("enter func:%s ",__func__);
     aux_handle->fry_last_change_gear_tick++;
 
-    if(aux_handle->aux_total_tick == 1)
+    if (aux_handle->aux_total_tick == 1)  //开启炸模式后的第一个温度
     {
         LOG_BAI("enter fry mode temp:%d ", aux_handle->current_average_temp);
         enter_mode_temp = aux_handle->current_average_temp;
@@ -1153,23 +1152,23 @@ void mode_fry_func(aux_handle_t *aux_handle)
     }
 
     //进入炸模式后，如果当前步骤还未确定，且处于进入模式的4s-30s内，则判断是否处于热锅状态
-    if(aux_handle->fry_step == 0)
+    if (aux_handle->fry_step == 0)
     {
         unsigned char gentle_count = 0;
         unsigned char rise_count = 0;
         //首先判断10组温度没有发生大的跳变，处于较为稳定的状态
-        for(int i = 0; i < ARRAY_DATA_SIZE - 1; i++)
+        for (int i = 0; i < ARRAY_DATA_SIZE - 1; i++)
         {
             //相邻的温度，新的温度大于旧的温度，新的温度大于旧的温度的幅度小于等于2度
-            if(aux_handle->temp_array[i + 1] >= aux_handle->temp_array[i] && \
-            aux_handle->temp_array[i + 1] - aux_handle->temp_array[i] <= 20)
+            if (aux_handle->temp_array[i + 1] >= aux_handle->temp_array[i] && 
+               aux_handle->temp_array[i + 1] - aux_handle->temp_array[i] <= 20)
             {
                 gentle_count++;
             }
         }
 
         //温度处于较为平稳的阶段，才能判断是否处于稳定上升的阶段
-        if(gentle_count >= 9)
+        if (gentle_count >= 9)
         {
             //最新的温度比最早的温度高5度或以上
             rise_count += aux_handle->temp_array[0] + 50 <= aux_handle->temp_array[ARRAY_DATA_SIZE - 1];
@@ -1181,42 +1180,41 @@ void mode_fry_func(aux_handle_t *aux_handle)
             rise_count += aux_handle->temp_array[4] + 20 <= aux_handle->temp_array[9];
         }
 
-        if(aux_handle->aux_total_tick <= 4 * 5)
+        if (aux_handle->aux_total_tick <= 4 * 5)
         {
-            LOG_BAI("初始阶段，5s内不做处理 ");
+            //LOG_BAI("初始阶段，5s内不做处理 ");
         }
-        else if(aux_handle->aux_total_tick > 4 * 5 && aux_handle->aux_total_tick <= 4 * 30)
+        else if (aux_handle->aux_total_tick > 4 * 5 && aux_handle->aux_total_tick <= 4 * 30)
         {
             //判断是否处于热锅阶段
-            if(rise_count >= 6)
+            if (rise_count >= 6)
             {
                 aux_handle->rise_quick_tick++;
             }
-            else if(rise_count < 2)
+            else if (rise_count < 2)
             {
                 aux_handle->rise_slow_tick++;
-
             }
             else        //如果都不满足暂时不判断
             {
                 //如果30s即将过去仍然判断不到是热油还是热锅，直接默认为热油阶段，准备开始控温逻辑
-                if(aux_handle->aux_total_tick == 4 * 30)
+                if (aux_handle->aux_total_tick == 4 * 30)
                 {
                     LOG_GRE("30s没有检测到处于何种阶段，直接设定为热油阶段");
-                    aux_handle->fry_step = 1;
+                    aux_handle->fry_step = 2;
                 }
             }
         }
 
         //连续3s都判断为此状态，因为10组温度数据代表的是2.5s内的温度数据，3s仍为此状态比较稳妥的判断当前的步骤
-        if(aux_handle->rise_quick_tick >= 3 * AUX_DATA_HZ)
+        if (aux_handle->rise_quick_tick >= 3 * AUX_DATA_HZ)
         {
-            LOG_GRE("检测到处于热锅阶段");
+            LOG_GRE("检测到处于热锅阶段(%d)", aux_handle->rise_quick_tick);
             aux_handle->fry_step = 1;
         }
-        else if(aux_handle->rise_slow_tick >= 3 * AUX_DATA_HZ)
+        else if (aux_handle->rise_slow_tick >= 3 * AUX_DATA_HZ)
         {
-            LOG_GRE("检测到处于热油阶段");
+            LOG_GRE("检测到处于热油阶段(%d)", aux_handle->rise_slow_tick);
             aux_handle->fry_step = 2;
         }
     }
@@ -1261,14 +1259,14 @@ void mode_fry_func(aux_handle_t *aux_handle)
     }
 
     //已经检测到热锅之后或者已经超过了30s,开始判断是否放入油或食材;即默认热锅最多30s
-    if((aux_handle->fry_step == 1  || aux_handle->aux_total_tick > 30 * 4) && aux_handle->first_put_food_flag == 0)
+    if ((aux_handle->fry_step == 1  || aux_handle->aux_total_tick > 30 * 4) && aux_handle->first_put_food_flag == 0)
     {
         //0.25s相邻的两个温度发生大于5度的波动
         if(abs(aux_handle->temp_array[ARRAY_DATA_SIZE - 1] - aux_handle->temp_array[ARRAY_DATA_SIZE - 2]) > 50)
         {
             aux_handle->fry_step = 2;              //进入到了控温步骤
             aux_handle->first_put_food_flag = 1;
-            LOG_BAI("判断可能是放入了食用油或食材 ");
+            LOG_BAI("判断可能是放入了食用油或食材 %d", abs(aux_handle->temp_array[ARRAY_DATA_SIZE - 1] - aux_handle->temp_array[ARRAY_DATA_SIZE - 2]));
         }
     }
 
@@ -2325,7 +2323,6 @@ void aux_assistant_input(enum INPUT_DIR input_dir, unsigned short temp, unsigned
         }
 
         cook_aux_init(INPUT_RIGHT);
-        extern void aux_cook_reset(aux_handle_t *aux_handle);
         aux_cook_reset(aux_handle);
         return;
     }
