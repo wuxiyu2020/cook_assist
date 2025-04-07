@@ -222,7 +222,16 @@
 			//"DEFAULT_LOG_LEVEL_DEBUG",
             "LOG_SIMPLE",
             "DEBUG",
-            "CFG_STDLIB_ENABLE"
+            "CFG_STDLIB_ENABLE",
+            "MACRO_NO_VALUE",                   // 定义一个无值的宏
+            "MACRO_WITH_VALUE=1",               // 定义一个带值的宏
+            "MACRO_WITH_STRING=\"marssenger\"",  // 定义一个字符串宏（注意转义双引号）
+            "APP_NAME=\"marssenger\"",
+            "PLATFORM=\"marssenger\"",
+            "COMPILE_HOST=\"marssenger\"",
+            "GIT_BRANCH=\"marssenger\"",
+            "GIT_HASH=\"marssenger\"",
+            "REGION_ENV_STRING=\"marssenger\"",
 		],
         "makefile.extensionOutputFolder": "./.vscode",
         "workbench.colorCustomizations": {

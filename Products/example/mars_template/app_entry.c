@@ -986,8 +986,8 @@ static void show_firmware_version(void)
     LOGI("mars", "Host: %s",   COMPILE_HOST);
     LOGI("mars", "Branch: %s", GIT_BRANCH);
     LOGI("mars", "Hash: %s",   GIT_HASH);
-    LOGI("mars", "Region env: %s\r\n", REGION_ENV_STRING);
-    LOGI("mars", "wchar_t: %d, size_t: %d, long-double: %d\r\n", sizeof(wchar_t), sizeof(size_t), sizeof(long double));
+    LOGI("mars", "Region env: %s", REGION_ENV_STRING);
+    LOGI("mars", "wchar_t: %d, size_t: %d, long-double: %d", sizeof(wchar_t), sizeof(size_t), sizeof(long double));
 }
 
 #if 1//(defined (TG7100CEVB))

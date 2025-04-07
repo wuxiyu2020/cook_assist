@@ -119,19 +119,32 @@ uint16_t findAver(uint16_t data[], size_t size)
     return average;
 }
 
-void printf_cur_temp_array(aux_handle_t* aux_handle)
+void printf_cur_temp_array(aux_handle_t* aux_handle, uint16_t temp)//最新温度(125) = 1810 | xxx xxx xxx xxx xxx xxx xxx xxx xxx xxx (最小=2430 最大=2440 平均=2432 中位=2430)
 {
     uint8_t szArray[128] = {0x00};
-    for (int i=0; i<ARRAY_DATA_SIZE; i++)
-    {
-        sprintf(szArray + strlen(szArray), "%d ", aux_handle->temp_array[i]);
+    if(aux_handle->temp_size < ARRAY_DATA_SIZE) 
+    {        
+        for (int i=0; i<aux_handle->temp_size; i++)
+        {
+            sprintf(szArray + strlen(szArray), "%d ", aux_handle->temp_array[i]);
+        }
+        LOGI("aux","数据统计: 最新温度(%d) = %d | %s  ", aux_handle->aux_total_tick, temp, szArray);
     }
-    LOGI("aux","数据统计: %s  (最小值=%d 最大值=%d 平均值=%d 中位值=%d)",
-    szArray,
-    findMin(aux_handle->temp_array, ARRAY_DATA_SIZE),
-    findMax(aux_handle->temp_array, ARRAY_DATA_SIZE),
-    findAver(aux_handle->temp_array, ARRAY_DATA_SIZE),
-    findMedian(aux_handle->temp_array, ARRAY_DATA_SIZE));
+    else
+    {
+        for (int i=0; i<ARRAY_DATA_SIZE; i++)
+        {
+            sprintf(szArray + strlen(szArray), "%d ", aux_handle->temp_array[i]);
+        }
+        LOGI("aux","数据统计: 最新温度(%d) = %d | %s  (最小值=%d 最大值=%d 平均值=%d 中位值=%d)",
+        aux_handle->aux_total_tick, 
+        temp, 
+        szArray,
+        findMin(aux_handle->temp_array, ARRAY_DATA_SIZE),
+        findMax(aux_handle->temp_array, ARRAY_DATA_SIZE),
+        findAver(aux_handle->temp_array, ARRAY_DATA_SIZE),
+        findMedian(aux_handle->temp_array, ARRAY_DATA_SIZE));
+    }
 }
 
 void udp_voice_init(void)
@@ -364,7 +377,9 @@ int change_multivalve_gear(unsigned char gear, enum INPUT_DIR input_dir)
     //判断尚未到达目标档位，不进行档位调整
     if(aux_handle->aux_multivalve_gear != aux_handle->aux_aim_multivalve_gear)
     {
-        LOGI("aux","error: 上一个火力切换(目标%d档)正在进行中，不下发切换指令", aux_handle->aux_aim_multivalve_gear);
+        LOGE("aux", "error: 上一个火力切换(目标%d档)正在进行中，不下发切换指令", aux_handle->aux_aim_multivalve_gear);
+        snprintf(voice_buff, sizeof(voice_buff), "八段阀忙碌中,切换%d档失败", gear);
+        udp_voice_write_sync(voice_buff, strlen(voice_buff), 50);
         return -1;
     }
 
@@ -520,7 +535,7 @@ void cook_aux_init(enum INPUT_DIR input_dir)
  * @param {unsigned short} temp
  * @return {*}
  */
-void aux_temp_save(aux_handle_t *aux_handle,unsigned short temp)
+void aux_temp_save(aux_handle_t *aux_handle, unsigned short temp)
 {
     static uint16_t window_average[ARRAY_DATA_SIZE] = {0x00};
     static uint8_t  window_average_size = 0;
@@ -1864,7 +1879,7 @@ void jian_heat_pan_old(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
 
         if (temp_arrivate && (temp_mid < 140*10))
         {
-            printf_cur_temp_array(aux_handle);
+            //printf_cur_temp_array(aux_handle);
             //LOGI("aux","温度骤降,热锅结束 (耗时%lu秒 温度=%d)", ((aos_now_ms() - fsm->state_time)/1000), temp_mid);
             LOGI("aux","煎模式: 温度骤降 ===> 热锅结束 (耗时%d秒 温度=%d)", (int)((aos_now_ms() - fsm->state_time)/1000), temp_mid);
             switch_fsm_state(fsm, jian_heat_oil);
@@ -2044,7 +2059,7 @@ void jian_heat_pan(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
             bool res = judge_cook_trend_down(aux_handle->temp_array, ARRAY_DATA_SIZE, 5);
             if (res && (diff >= 300))
             {
-                printf_cur_temp_array(aux_handle);
+                //printf_cur_temp_array(aux_handle);
                 LOGI("aux","煎模式(热锅阶段): 温度骤降1 ===> 热锅结束 (耗时%d秒 温度=%d)", (int)((aos_now_ms() - fsm->state_time)/1000), temp_mid);
                 switch_fsm_state(fsm, jian_heat_oil);
             }
@@ -2053,7 +2068,7 @@ void jian_heat_pan(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
         {
             if (temp_mid < 150*10)
             {
-                printf_cur_temp_array(aux_handle);
+                //printf_cur_temp_array(aux_handle);
                 //LOGI("aux","温度骤降,热锅结束 (耗时%lu秒 温度=%d)", ((aos_now_ms() - fsm->state_time)/1000), temp_mid);
                 LOGI("aux","煎模式(热锅阶段): 温度骤降2 ===> 热锅结束 (耗时%d秒 温度=%d)", (int)((aos_now_ms() - fsm->state_time)/1000), temp_mid);
                 switch_fsm_state(fsm, jian_heat_oil);
@@ -2144,7 +2159,7 @@ void jian_heat_oil(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
                 bool res = judge_cook_trend_down(aux_handle->temp_array, ARRAY_DATA_SIZE, 5);
                 if (res && (diff >= 300))
                 {
-                    printf_cur_temp_array(aux_handle);
+                    //printf_cur_temp_array(aux_handle);
                     LOGI("aux","煎模式(热油阶段): 温度骤降1 ===> 热油结束 (耗时%d秒 温度=%d)", (int)((aos_now_ms() - fsm->state_time)/1000), temp_mid);
                     switch_fsm_state(fsm, jian_heat_food);
                 }
@@ -2154,7 +2169,7 @@ void jian_heat_oil(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
         {
             if (temp_mid < 150*10)
             {
-                printf_cur_temp_array(aux_handle);
+                //printf_cur_temp_array(aux_handle);
                 LOGI("aux","煎模式(热油阶段): 温度骤降2 ===> 热油结束 (耗时%d秒 温度=%d)", (int)((aos_now_ms() - fsm->state_time)/1000), temp_mid);
                 //LOGI("aux","煎模式(热油阶段): 温度骤降,热油结束 (耗时%lu秒 温度=%d)", ((aos_now_ms() - fsm->state_time)/1000), temp_mid);
                 switch_fsm_state(fsm, jian_heat_food);
@@ -2338,8 +2353,9 @@ void aux_assistant_input(enum INPUT_DIR input_dir, unsigned short temp, unsigned
     }
 
     aux_handle->aux_total_tick++;
-    LOGI("aux","最新采集温度(%d) = %d", aux_handle->aux_total_tick, temp);
     aux_temp_save(aux_handle, temp);
+    //LOGI("aux","最新采集温度(%d) = %d", aux_handle->aux_total_tick, temp);
+    printf_cur_temp_array(aux_handle, temp);
 
     // if(aux_handle->aux_total_tick >= MAX_FIRE_TIME)
     // {
@@ -2348,17 +2364,13 @@ void aux_assistant_input(enum INPUT_DIR input_dir, unsigned short temp, unsigned
     //     aux_handle->aux_switch = 0;             //退出辅助烹饪模式
     // }
 
-    if(aux_handle->temp_size < 10)
+    if (aux_handle->temp_size < 10)
     {
-        LOGI("aux","temp data is not enough,func return");
+        LOGI("aux", "temp data is not enough, func return");
         return;
     }
-    else
-    {
-        printf_cur_temp_array(aux_handle);
-    }
 
-    switch(aux_handle->aux_type)
+    switch (aux_handle->aux_type)
     {
         case MODE_CHAO:
             mode_chao_func(aux_handle);
