@@ -1596,9 +1596,9 @@ void mars_sensor_uartMsgFromSlave(uartmsg_que_t *msg,
                 set_multivalve_gear(mars_template_ctx->status.MultiValveGear, 1);
             }
 
-            LOGW("mars", "**************** 当前火力档位: %d ************************", msg->msg_buf[(*index)+1]);
-            LOGW("mars", "**************** 当前火力档位: %d ************************", msg->msg_buf[(*index)+1]);
-            LOGW("mars", "**************** 当前火力档位: %d ************************", msg->msg_buf[(*index)+1]);
+            LOGW("mars", "**************** 当前火力档位: %d ************************************************", msg->msg_buf[(*index)+1]);
+            LOGW("mars", "**************** 当前火力档位: %d ************************************************", msg->msg_buf[(*index)+1]);
+            LOGW("mars", "**************** 当前火力档位: %d ************************************************", msg->msg_buf[(*index)+1]);
             (*index)+=1;
             break;
         }

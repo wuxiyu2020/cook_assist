@@ -223,9 +223,10 @@
             "LOG_SIMPLE",
             "DEBUG",
             "CFG_STDLIB_ENABLE",
-            "MACRO_NO_VALUE",                   // 定义一个无值的宏
-            "MACRO_WITH_VALUE=1",               // 定义一个带值的宏
-            "MACRO_WITH_STRING=\"marssenger\"",  // 定义一个字符串宏（注意转义双引号）
+            "MACRO_NO_VALUE",                       // 定义一个无值的宏
+            "MACRO_WITH_VALUE=1",                   // 定义一个带值的宏
+            "MACRO_WITH_STRING=\"marssenger\"",     // 定义一个字符串宏（注意转义双引号）
+            "GET_MAX_MACRO(a,b)=((a)>(b)?(a):(b))",
             "APP_NAME=\"marssenger\"",
             "PLATFORM=\"marssenger\"",
             "COMPILE_HOST=\"marssenger\"",

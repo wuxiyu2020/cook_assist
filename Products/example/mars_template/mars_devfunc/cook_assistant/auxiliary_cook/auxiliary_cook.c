@@ -364,7 +364,7 @@ int change_multivalve_gear(unsigned char gear, enum INPUT_DIR input_dir)
     //如果设置档位和当前档位一致，直接返回
     if(aux_handle->aux_multivalve_gear == gear)
     {
-        LOGI("aux","error: 目标档位(%d)与当前档位(%d)一致，不下发切换指令", gear, aux_handle->aux_multivalve_gear);
+        LOGI("aux","目标档位(%d)与当前档位(%d)一致，不下发切换指令", gear, aux_handle->aux_multivalve_gear);
         return -1;
     }
 
@@ -2041,8 +2041,7 @@ void jian_heat_pan(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
         fire_7_switch_tick = 0;
     }
 
-    //一直处于热锅阶段里面
-    if (temp_cur < 190*10)  //大于190度且持续时间超过5秒，才切换档位，而不是那种立即切换，立即切换有可能在一直切换档位(因为当前温度有可能在200这个临界点跳来跳去)
+    if (temp_cur < 190*10)
     {
         if (!temp_arrivate)
         {
