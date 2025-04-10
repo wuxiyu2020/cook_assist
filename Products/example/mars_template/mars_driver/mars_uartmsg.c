@@ -230,7 +230,7 @@ static void M_uartmsg_addlist(void *msg_buf, uint16_t msg_len, uint16_t msg_seq,
 
             aos_mutex_lock(&g_msglist_mutex, AOS_WAIT_FOREVER);
             dlist_add_tail(&msg_node->list_node, &g_uartmsg_send_list);
-            LOGW("mars", "本次添加完成, 发送队列元素个数 = %d", dlist_entry_number(&g_uartmsg_send_list));
+            //LOGW("mars", "本次添加完成, 发送队列元素个数 = %d", dlist_entry_number(&g_uartmsg_send_list));
             aos_mutex_unlock(&g_msglist_mutex);
         }
     }  
