@@ -1590,7 +1590,7 @@ void chao_heat_pan_oil_onion(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
         {
             if (slope_flag && slope < 10.0)
             {
-                LOGI("aux", "炒模式(%d): 起始温升较慢 ⇨ 炒食材", aux_handle->fsm_chao_loop_cnt);
+                LOGI("aux", "炒模式(%d): 起始温升慢 ⇨ 炒食材", aux_handle->fsm_chao_loop_cnt);
                 beep_control_cb(0x02);  
                 switch_fsm_state(fsm, chao_heat_food);
             }
@@ -1603,7 +1603,7 @@ void chao_heat_pan_oil_onion(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
     */
     if (time_dn_trend == 0)
     {  
-        LOGI("aux","炒模式(%d): 等待3个温度下降", aux_handle->fsm_chao_loop_cnt);      
+        LOGI("aux","炒模式(%d): wait time_dn_trend 3", aux_handle->fsm_chao_loop_cnt);      
         int diff = ( (int)(aux_handle->temp_array[0]) - (int)(aux_handle->temp_array[ARRAY_DATA_SIZE - 1]) );
         bool res = judge_cook_trend_down(aux_handle->temp_array, ARRAY_DATA_SIZE, 3);
         if (res && (diff >= 300))
@@ -1624,18 +1624,17 @@ void chao_heat_pan_oil_onion(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
         if (aos_now_ms() - time_dn_trend >= 2000)
         {
             LOGI("aux","炒模式(%d): 10秒内从%d上升到%d 差值=%d", aux_handle->fsm_chao_loop_cnt, temp_dn_trend, temp_max, temp_max-temp_dn_trend);
-
             if ((temp_max <= 1000) || (temp_dn_trend <= 400))  //这里有点担心: 爆香和热菜无法区分 (再加个温差的判断)            
             {
-                LOGI("aux", "炒模式(%d): ⇨ 煎食材 (耗时%d秒)",aux_handle->fsm_chao_loop_cnt, (int)((aos_now_ms() - fsm->state_time)/1000) );
-                switch_fsm_state(fsm, chao_heat_pan_oil_onion);
+                LOGI("aux", "炒模式(%d): ⇨ 炒食材 (耗时%d秒)",aux_handle->fsm_chao_loop_cnt, (int)((aos_now_ms() - fsm->state_time)/1000) );
+                switch_fsm_state(fsm, chao_heat_food);
                 beep_control_cb(0x02);
             }
             else
             {
                 LOGI("aux", "炒模式(%d): ⇨ 热锅热油爆香 (耗时%d秒)",aux_handle->fsm_chao_loop_cnt, (int)((aos_now_ms() - fsm->state_time)/1000));
-                switch_fsm_state(fsm, chao_heat_food);
-                aux_handle->fsm_jian_loop_cnt++;
+                switch_fsm_state(fsm, chao_heat_pan_oil_onion);
+                aux_handle->fsm_chao_loop_cnt++;
                 beep_control_cb(0x02);
             }
         }
@@ -2407,7 +2406,7 @@ void mode_chao_func(aux_handle_t *aux_handle)
 {
     if (aux_handle->fsm_chao.state_func == NULL)
     {
-        switch_fsm_state(&aux_handle->fsm_chao, chao_heat_pan);
+        switch_fsm_state(&aux_handle->fsm_chao, chao_heat_pan_oil_onion);
     }
 
     run_fsm(&aux_handle->fsm_chao, aux_handle);
@@ -2594,7 +2593,7 @@ void jian_heat_pan_oil(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
         {
             if (slope_flag && slope < 10.0)
             {
-                LOGI("aux", "煎模式(%d): 起始温升较慢 ⇨ 煎食材", aux_handle->fsm_jian_loop_cnt);
+                LOGI("aux", "煎模式(%d): 起始温升慢 ⇨ 煎食材", aux_handle->fsm_jian_loop_cnt);
                 beep_control_cb(0x02);  
                 switch_fsm_state(fsm, jian_heat_food);
             }
