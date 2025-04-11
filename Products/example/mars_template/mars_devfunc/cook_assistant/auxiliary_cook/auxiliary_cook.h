@@ -101,9 +101,11 @@ typedef struct
 
     /*煎模式相关参数*/
     func_ptr_fsm_t fsm_jian;
+    int fsm_jian_loop_cnt;
 
     /*炒模式相关参数*/
     func_ptr_fsm_t fsm_chao;
+    int fsm_chao_loop_cnt;
 
 
 } aux_handle_t;
@@ -126,10 +128,12 @@ void register_auxclose_fire_cb(int (*cb)(enum INPUT_DIR input_dir));
 void register_auxcount_down(int (*cb)(unsigned char remaintime));
 void register_aux_exit_cb(int (*aux_exit_cb)(enum aux_exit_type));
 
+void jian_heat_pan_oil(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle);
 void jian_heat_pan(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle);  //热锅
 void jian_heat_oil(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle);  //热油
 void jian_heat_food(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle); //煎食物
 
+void chao_heat_pan_oil_onion(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle);
 void chao_heat_pan(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle);      //热锅
 void chao_heat_oil(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle);      //热油
 void chao_heat_onion(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle);    //葱姜蒜
