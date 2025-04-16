@@ -1181,9 +1181,9 @@ void mode_fry_func(aux_handle_t *aux_handle)
     static uint64_t time_pan_warn_2     = 0;  //第二次警告的时间
 
     static uint64_t time_oil_remind     = 0;  //温度到达时间
+    static uint64_t time_up_trend       = 0;
     static uint64_t time_oil_warn_1     = 0;  //第一次警告的时间
     static uint64_t time_oil_warn_2     = 0;  //第二次警告的时间
-
 
     if (aux_handle->aux_total_tick == 1)  //开启炸模式后的第一个温度
     {
@@ -1477,42 +1477,98 @@ void mode_fry_func(aux_handle_t *aux_handle)
         }
     }
 
-    if ((aux_handle->fry_step == 3 || aux_handle->fry_step <= 4) && (aux_handle->first_reach_set_temp_flag == 1))
+    if ((aux_handle->fry_step == 4) && (aux_handle->first_reach_set_temp_flag == 1))
     {
-        if (time_oil_remind != 0)
+        bool body_exist_flag = check_any_large_diff(aux_handle->temp_array, ARRAY_DATA_SIZE);    
+        if (!body_exist_flag)  //无人存在
         {
-            if (time_pan_warn_1 == 0)
+            if (time_up_trend == 0)
             {
-                if ((aos_now_ms() - time_pan_remind) >= 60*1000)
-                {
-                    change_multivalve_gear(0x07, INPUT_RIGHT);
-                    time_pan_warn_1 = aos_now_ms();
-                    beep_control_cb(0x02); 
-                }    
+                time_up_trend = aos_now_ms();//首次进入温度上升的时间
             }
             else
             {
-                if (time_pan_warn_2 == 0)
+                int time_diff = (aos_now_ms() - time_up_trend);
+                if (time_diff > 5*60*1000)
                 {
-                    if ((aos_now_ms() - time_pan_warn_1) >= 120*1000)
+                    if (time_pan_warn_1 == 0)
                     {
+                        //udp_voice_write_sync("防止干烧,切换小火", strlen("防止干烧,切换小火"), 50);
                         beep_control_cb(0x02);  
-                        aux_close_fire_cb(INPUT_RIGHT);             
-                        time_pan_warn_2 = aos_now_ms();    
-    
-                        aux_handle->aux_switch = 0;       
-                        if(aux_exit_cb != NULL)
+                        change_multivalve_gear(0x07, INPUT_RIGHT); //火力7档  
+                        time_pan_warn_1 = aos_now_ms();
+                    }
+                    else
+                    {
+                        if (time_pan_warn_2 == 0)
                         {
-                            aux_exit_cb(AUX_SUCCESS_EXIT);
-                        }    
-                    }    
-                }    
+                            if ((aos_now_ms() - time_pan_warn_1) > 1*60*1000)
+                            {
+                                udp_voice_write_sync("防止干烧,关闭右灶", strlen("防止干烧,关闭右灶"), 50);
+                                beep_control_cb(0x02);  
+                                aux_close_fire_cb(INPUT_RIGHT);
+                                time_pan_warn_2 = aos_now_ms();
+                    
+                                aux_handle->aux_switch = 0;                 
+                                if(aux_exit_cb != NULL)
+                                {
+                                    aux_exit_cb(AUX_SUCCESS_EXIT);
+                                }   
+                            }         
+                        }
+                    }
+                }
             }
+        }
+        else
+        {
+            time_up_trend   = 0;
+            time_pan_warn_1 = 0;
+            time_pan_warn_2 = 0;
         }
     }
 
+    // if ((aux_handle->fry_step == 3 || aux_handle->fry_step == 4) && (aux_handle->first_reach_set_temp_flag == 1))
+    // {
+    //     if (time_oil_remind != 0)
+    //     {
+    //         if (time_pan_warn_1 == 0)
+    //         {
+    //             if ((aos_now_ms() - time_pan_remind) >= 6*60*1000)
+    //             {
+    //                 change_multivalve_gear(0x07, INPUT_RIGHT);
+    //                 time_pan_warn_1 = aos_now_ms();
+    //                 beep_control_cb(0x02); 
+    //             }    
+    //         }
+    //         else
+    //         {
+    //             if (time_pan_warn_2 == 0)
+    //             {
+    //                 if ((aos_now_ms() - time_pan_warn_1) >= 8*60*1000)
+    //                 {
+    //                     beep_control_cb(0x02);  
+    //                     aux_close_fire_cb(INPUT_RIGHT);             
+    //                     time_pan_warn_2 = aos_now_ms();    
+    
+    //                     aux_handle->aux_switch = 0;       
+    //                     if(aux_exit_cb != NULL)
+    //                     {
+    //                         aux_exit_cb(AUX_SUCCESS_EXIT);
+    //                     }    
+    //                 }    
+    //             }    
+    //         }
+    //     }
+    // }
+
     if(aux_handle->fry_step == 4 && gentle_flag == true)
     {
+        if (time_pan_warn_1 != 0)
+        {
+            return;
+        }
+
         if(aux_handle->fry_last_change_gear_tick >= 10 * 4 && aux_handle->current_average_temp >= aux_handle->aux_set_temp * 10 - 5 * 10)
         {
             unsigned char gear = 0;
