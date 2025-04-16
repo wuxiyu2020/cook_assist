@@ -1176,11 +1176,28 @@ void mode_fry_func(aux_handle_t *aux_handle)
     static bool gentle_flag = false;
     aux_handle->fry_last_change_gear_tick++;
 
+    static uint64_t time_pan_remind     = 0;  //温度到达时间
+    static uint64_t time_pan_warn_1     = 0;  //第一次警告的时间
+    static uint64_t time_pan_warn_2     = 0;  //第二次警告的时间
+
+    static uint64_t time_oil_remind     = 0;  //温度到达时间
+    static uint64_t time_oil_warn_1     = 0;  //第一次警告的时间
+    static uint64_t time_oil_warn_2     = 0;  //第二次警告的时间
+
+
     if (aux_handle->aux_total_tick == 1)  //开启炸模式后的第一个温度
     {
         LOGI("aux","enter fry mode temp:%d ", aux_handle->current_average_temp);
         enter_mode_temp = aux_handle->current_average_temp;
         aux_handle->fry_step = 0;               //重置炸场景步骤
+
+        time_pan_remind = 0;
+        time_pan_warn_1 = 0;
+        time_pan_warn_2 = 0;
+
+        time_oil_remind = 0;
+        time_oil_warn_1 = 0;
+        time_oil_warn_2 = 0;
     }
 
     //进入炸模式后，如果当前步骤还未确定，且处于进入模式的4s-30s内，则判断是否处于热锅状态
@@ -1232,7 +1249,7 @@ void mode_fry_func(aux_handle_t *aux_handle)
                 //如果30s即将过去仍然判断不到是热油还是热锅，直接默认为热油阶段，准备开始控温逻辑
                 if (aux_handle->aux_total_tick == 4 * 30)
                 {
-                    LOGI("aux","30s没有检测到处于何种阶段，直接设定为热油阶段");
+                    LOGI("aux","炸模式(%d): 30s没有检测到处于何种阶段，直接设定为热油阶段", aux_handle->fry_step);
                     aux_handle->fry_step = 2;
                 }
             }
@@ -1241,12 +1258,12 @@ void mode_fry_func(aux_handle_t *aux_handle)
         //连续3s都判断为此状态，因为10组温度数据代表的是2.5s内的温度数据，3s仍为此状态比较稳妥的判断当前的步骤
         if (aux_handle->rise_quick_tick >= 3 * AUX_DATA_HZ)
         {
-            LOGI("aux","检测到处于热锅阶段(%d)", aux_handle->rise_quick_tick);
+            LOGI("aux","炸模式(%d): 检测到处于热锅阶段(%d)", aux_handle->fry_step, aux_handle->rise_quick_tick);
             aux_handle->fry_step = 1;
         }
         else if (aux_handle->rise_slow_tick >= 3 * AUX_DATA_HZ)
         {
-            LOGI("aux","检测到处于热油阶段(%d)", aux_handle->rise_slow_tick);
+            LOGI("aux","炸模式(%d): 检测到处于热油阶段(%d)", aux_handle->fry_step, aux_handle->rise_slow_tick);
             aux_handle->fry_step = 2;
         }
     }
@@ -1278,6 +1295,7 @@ void mode_fry_func(aux_handle_t *aux_handle)
             change_multivalve_gear(0x04, INPUT_RIGHT);
             aux_handle->fry_last_change_gear_tick = 0;
             aux_handle->first_hot_pot_flag = 1;
+            time_pan_remind = aos_now_ms();
             if(beep_control_cb != NULL)
             {
                 beep_control_cb(0x02);          //提醒用户加油
@@ -1291,7 +1309,7 @@ void mode_fry_func(aux_handle_t *aux_handle)
     }
 
     //已经检测到热锅之后或者已经超过了30s,开始判断是否放入油或食材;即默认热锅最多30s
-    if ((aux_handle->fry_step == 1  || aux_handle->aux_total_tick > 30 * 4) && aux_handle->first_put_food_flag == 0)
+    if ((aux_handle->fry_step == 1  /* || aux_handle->aux_total_tick > 30 * 4*/) && aux_handle->first_put_food_flag == 0)
     {
         //0.25s相邻的两个温度发生大于5度的波动
         if(abs(aux_handle->temp_array[ARRAY_DATA_SIZE - 1] - aux_handle->temp_array[ARRAY_DATA_SIZE - 2]) > 50)
@@ -1299,6 +1317,37 @@ void mode_fry_func(aux_handle_t *aux_handle)
             aux_handle->fry_step = 2;              //进入到了控温步骤
             aux_handle->first_put_food_flag = 1;
             LOGI("aux","判断可能是放入了食用油或食材 %d", abs(aux_handle->temp_array[ARRAY_DATA_SIZE - 1] - aux_handle->temp_array[ARRAY_DATA_SIZE - 2]));
+        }
+
+        if (time_pan_remind != 0)
+        {
+            if (time_pan_warn_1 == 0)
+            {
+                if ((aos_now_ms() - time_pan_remind) >= 60*1000)
+                {
+                    change_multivalve_gear(0x07, INPUT_RIGHT);
+                    time_pan_warn_1 = aos_now_ms();
+                    beep_control_cb(0x02); 
+                }    
+            }
+            else
+            {
+                if (time_pan_warn_2 == 0)
+                {
+                    if ((aos_now_ms() - time_pan_warn_1) >= 120*1000)
+                    {
+                        beep_control_cb(0x02);  
+                        aux_close_fire_cb(INPUT_RIGHT);             
+                        time_pan_warn_2 = aos_now_ms();    
+    
+                        aux_handle->aux_switch = 0;       
+                        if(aux_exit_cb != NULL)
+                        {
+                            aux_exit_cb(AUX_SUCCESS_EXIT);
+                        }    
+                    }    
+                }    
+            }
         }
     }
 
@@ -1424,6 +1473,41 @@ void mode_fry_func(aux_handle_t *aux_handle)
             LOGI("aux","首次达到设定的目标温度，current_average_temp:%d,set_temp:%d",aux_handle->current_average_temp, aux_handle->aux_set_temp * 10);
             beep_control_cb(0x02);
             aux_handle->first_reach_set_temp_flag = 1;
+            time_oil_remind = aos_now_ms();
+        }
+    }
+
+    if ((aux_handle->fry_step == 3 || aux_handle->fry_step <= 4) && (aux_handle->first_reach_set_temp_flag == 1))
+    {
+        if (time_oil_remind != 0)
+        {
+            if (time_pan_warn_1 == 0)
+            {
+                if ((aos_now_ms() - time_pan_remind) >= 60*1000)
+                {
+                    change_multivalve_gear(0x07, INPUT_RIGHT);
+                    time_pan_warn_1 = aos_now_ms();
+                    beep_control_cb(0x02); 
+                }    
+            }
+            else
+            {
+                if (time_pan_warn_2 == 0)
+                {
+                    if ((aos_now_ms() - time_pan_warn_1) >= 120*1000)
+                    {
+                        beep_control_cb(0x02);  
+                        aux_close_fire_cb(INPUT_RIGHT);             
+                        time_pan_warn_2 = aos_now_ms();    
+    
+                        aux_handle->aux_switch = 0;       
+                        if(aux_exit_cb != NULL)
+                        {
+                            aux_exit_cb(AUX_SUCCESS_EXIT);
+                        }    
+                    }    
+                }    
+            }
         }
     }
 
@@ -1558,9 +1642,9 @@ void chao_heat_pan_oil_onion(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
         {
             if (time_warn_1 == 0)
             {            
-                if (temp_cur < (temp_low-200))
+                //if (temp_cur < (temp_low-200))
                 {
-                    change_multivalve_gear(gear_low, INPUT_RIGHT);
+                    change_multivalve_gear(0x05, INPUT_RIGHT);
                 }
             }
         }
