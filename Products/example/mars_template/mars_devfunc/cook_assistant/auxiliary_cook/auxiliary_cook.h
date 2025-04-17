@@ -82,6 +82,7 @@ typedef struct
     boil_tendency_t boil_next_tendency;             //煮模式待切换的下一个状态
     unsigned int boil_next_status_tick;             //煮模式待切换趋势计时
     unsigned short max_up_value;
+    uint64_t tick_first_boil;
 
     // unsigned char boil_mode_rise_step;              //煮模式加热阶段标志位
     // unsigned int boil_mode_tick;                    //煮模式加热阶段时间计时

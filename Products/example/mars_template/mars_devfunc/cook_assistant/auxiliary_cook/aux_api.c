@@ -11,6 +11,9 @@
 #include "../cloud.h"
 #include "auxiliary_cook.h"
 
+extern int(*multi_valve_cb)(enum INPUT_DIR input_dir, int gear);
+extern int(*aux_exit_cb)(enum aux_exit_type);
+extern int(*beep_control_cb)(int beep_type);
 
 void set_aux_ignition_switch(unsigned char ignition_switch, enum INPUT_DIR input_dir)
 {
@@ -22,36 +25,32 @@ void set_aux_ignition_switch(unsigned char ignition_switch, enum INPUT_DIR input
         return;
     }
 
-    aux_handle->ignition_switch = ignition_switch;
-    printf("aux ignition switch change,now is:%d\r\n",aux_handle->ignition_switch);
-    
-    //开火
-    if(aux_handle->ignition_switch)
+    aux_handle->ignition_switch = ignition_switch; 
+    if(aux_handle->ignition_switch)    //开火
     {
 
     }
-    else        //关火
+    else //关火
     {
         //煮模式会自动关火并退出，如果是手动关火属于异常退出
         if(aux_handle->aux_type == MODE_ZHU)
         {
-            extern int(*aux_exit_cb)(enum aux_exit_type);
-            
+                        
             if(aux_exit_cb != NULL)
             {
-                printf("close fire,exit aux mode\r\n");
+                LOGI("aux", "右灶关闭,退出辅助烹饪!!!");
+                multi_valve_cb(INPUT_RIGHT, 0);
                 aux_exit_cb(AUX_ERROR_EXIT);
             }
         }
         else if(aux_handle->aux_type == MODE_CHAO || aux_handle->aux_type == MODE_JIAN || aux_handle->aux_type == MODE_ZHA)
         {
             //无论什么模式，关火都会退出辅助烹饪的逻辑
-            extern int(*multi_valve_cb)(enum INPUT_DIR input_dir, int gear);
             if(multi_valve_cb != NULL)
             {
                 //恢复最大档位
-                printf("close fire,set mutivalve:0\r\n");
-                multi_valve_cb(INPUT_RIGHT,0);
+                LOGI("aux", "右灶关闭,退出辅助烹饪!!!");
+                multi_valve_cb(INPUT_RIGHT, 0);
                 aux_exit_cb(AUX_SUCCESS_EXIT);
             }
         }
@@ -60,6 +59,19 @@ void set_aux_ignition_switch(unsigned char ignition_switch, enum INPUT_DIR input
         cook_aux_reinit(input_dir);
     }
     
+}
+
+void exit_aux_func(enum INPUT_DIR input_dir)
+{
+    aux_handle_t *aux_handle = get_aux_handle(input_dir);
+    if(aux_handle->aux_switch != 0)
+    {
+        LOGI("aux", "退出辅助烹饪!!!");
+        aux_exit_cb(AUX_ERROR_EXIT);
+        multi_valve_cb(INPUT_RIGHT, 0);
+        beep_control_cb(0x02);
+        cook_aux_reinit(input_dir);            
+    }
 }
 
 
