@@ -1557,7 +1557,7 @@ void mode_fry_func(aux_handle_t *aux_handle)
                     {
                         if (time_pan_warn_2 == 0)
                         {
-                            if ((aos_now_ms() - time_pan_warn_1) > 1*60*1000)
+                            if ((aos_now_ms() - time_pan_warn_1) > 5*60*1000)
                             {
                                 //udp_voice_write_sync("防止干烧,关闭右灶", strlen("防止干烧,关闭右灶"), 50);
                                 beep_control_cb(0x02);  
