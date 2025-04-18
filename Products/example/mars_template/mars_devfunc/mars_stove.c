@@ -865,6 +865,17 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
             uint8_t AuxTime = msg->msg_buf[(*index)+3];
             uint8_t AuxTemp = msg->msg_buf[(*index)+4];
 
+            // if ((mars_template_ctx->status.AuxCookMode == 4) && 
+            //     (AuxCookSwitch == 0) && 
+            //     (AuxCookMode == 0) && 
+            //     (AuxTime == 0) && 
+            //     (AuxTemp == 0))
+            // {
+            //     LOGI("mars","电控上报有异常: 电控端主动退出一键烹饪模式 (%d)", mars_template_ctx->status.AuxCookMode);
+            //     (*index)+=4;
+            //     break;
+            // }
+
             if (mars_template_ctx->status.AuxCookSwitch != AuxCookSwitch || mars_template_ctx->status.AuxCookMode != AuxCookMode || \
             mars_template_ctx->status.AuxCookSetTime != AuxTime || mars_template_ctx->status.AuxCookSetTemp != AuxTemp)
             {
@@ -873,14 +884,12 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
 
                 if(mars_template_ctx->status.AuxCookSwitch == 1 && AuxCookSwitch == 0)
                 {
-                    LOGI("mars","电控端主动退出一键烹饪模式");
+                    LOGI("mars","电控端 主动退出辅助烹饪");
                     char buf_setmsg[8] = {0};
                     int buf_len = 0;
                     buf_setmsg[buf_len++] = prop_AuxCookStatus;
-                    buf_setmsg[buf_len++] = 0x02;           //设备端主动退出的目前属于异常退出
-                    LOGI("mars","一键烹饪模式异常退出");
+                    buf_setmsg[buf_len++] = 0x01;                    
                     Mars_uartmsg_send(cmd_store,uart_get_seq_mid(),buf_setmsg,buf_len,3);
-
                 }
 
                 //设置为炖模式，但是没有设置炖的时间，错误设定
@@ -896,8 +905,8 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
                 //正常设定
                 else
                 {
-                    mars_template_ctx->status.AuxCookSwitch = AuxCookSwitch;
-                    mars_template_ctx->status.AuxCookMode =AuxCookMode;
+                    mars_template_ctx->status.AuxCookSwitch  = AuxCookSwitch;
+                    mars_template_ctx->status.AuxCookMode    = AuxCookMode;
                     mars_template_ctx->status.AuxCookSetTime = AuxTime;
                     mars_template_ctx->status.AuxCookSetTemp = AuxTemp;
                     if (AuxCookSwitch > 0)
@@ -1612,7 +1621,8 @@ void mars_sensor_uartMsgFromSlave(uartmsg_que_t *msg,
 
                 if (mars_template_ctx->status.MultiVaveStatus == 0)
                 {
-                    exit_aux_func(1);
+                    LOGW("mars", "用户手动调火");
+                    //exit_aux_func(1);
                 }
             }
 

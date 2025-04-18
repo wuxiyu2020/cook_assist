@@ -37,6 +37,9 @@ static int aux_set_exit_cb(int type);
 extern mars_cook_assist_t  g_user_cook_assist;
 static int cook_assistant_close_fire(enum INPUT_DIR input_dir)
 {
+    extern int udp_voice_write_sync(const unsigned char* p_data, unsigned int datalen,unsigned int timeout_ms);
+    udp_voice_write_sync("灶具主动关火", strlen("灶具主动关火"), 50);
+
     uint8_t buf_setmsg[10] = {0};
     uint16_t buf_len = 0;
     buf_setmsg[buf_len++] = prop_HoodFireTurnOff;  //灶具关火

@@ -201,7 +201,9 @@
             "iot_import_udp.h": "c",
             "fstream": "c",
             "cstdint": "c",
-            "algorithm": "c"
+            "algorithm": "c",
+            "memory": "c",
+            "future": "c"
         },
 		"C_Cpp.default.defines": [
 			"TG7100CEVB",

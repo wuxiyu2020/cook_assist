@@ -1192,9 +1192,9 @@ void mode_fry_func(aux_handle_t *aux_handle)
     static uint64_t time_oil_warn_1     = 0;  //控温阶段: 干烧逻辑·第一次警告的时间
     static uint64_t time_oil_warn_2     = 0;  //控温阶段: 干烧逻辑·第二次警告的时间    
 
-    if (aux_handle->aux_total_tick == 1)  //开启炸模式后的第一个温度
+    if (aux_handle->aux_total_tick == 10)  //开启炸模式后的第一个温度
     {
-        LOGI("aux","enter fry mode temp:%d ", aux_handle->current_average_temp);
+        LOGI("aux","mode_fry_func: enter fry mode temp: %d %d ", aux_handle->aux_total_tick, aux_handle->current_average_temp);
         enter_mode_temp = aux_handle->current_average_temp;
         aux_handle->fry_step = 0;               //重置炸场景步骤
 
@@ -1296,12 +1296,15 @@ void mode_fry_func(aux_handle_t *aux_handle)
         gentle_flag = false;
     }
 
+    LOGI("aux", "炸模式(%d %d %d)", aux_handle->fry_step, gentle_flag, aux_handle->current_average_temp);
+
     //处于热锅阶段，进行热锅阶段温控逻辑
-    if(aux_handle->fry_step == 1 && gentle_flag == true)
+    if(aux_handle->fry_step == 1 && gentle_flag == true)  //调小火
     {
-        if(aux_handle->current_average_temp >= 180 * 10 && aux_handle->current_average_temp < 200 * 10 && aux_handle->first_hot_pot_flag == 0)
+        if(aux_handle->current_average_temp >= 150 * 10 && aux_handle->current_average_temp < 200 * 10 && aux_handle->first_hot_pot_flag == 0)
         {
-            change_multivalve_gear(0x04, INPUT_RIGHT);
+            LOGI("aux", "热锅温度150-200,调6档");
+            change_multivalve_gear(0x06, INPUT_RIGHT);
             aux_handle->fry_last_change_gear_tick = 0;
             aux_handle->first_hot_pot_flag = 1;
             time_pan_remind = aos_now_ms();
@@ -1312,11 +1315,13 @@ void mode_fry_func(aux_handle_t *aux_handle)
         }
         else if(aux_handle->current_average_temp > 200 * 10)
         {
+            LOGI("aux", "热锅温度到>200,调7档");
             change_multivalve_gear(0x07, INPUT_RIGHT);
             aux_handle->fry_last_change_gear_tick = 0;
         }
     }
 
+    LOGI("aux", "炸模式(%d %d %d %d)", aux_handle->fry_step, aux_handle->first_put_food_flag, (int)time_pan_remind, (int)time_pan_warn_1);
     //已经检测到热锅之后或者已经超过了30s,开始判断是否放入油或食材;即默认热锅最多30s
     if ((aux_handle->fry_step == 1  /* || aux_handle->aux_total_tick > 30 * 4*/) && aux_handle->first_put_food_flag == 0)
     {
@@ -1330,10 +1335,15 @@ void mode_fry_func(aux_handle_t *aux_handle)
 
         if (time_pan_remind != 0)
         {
+            LOGI("aux", "1");
             if (time_pan_warn_1 == 0)
             {
+                LOGI("aux", "2");
                 if ((aos_now_ms() - time_pan_remind) >= 60*1000)
                 {
+                    LOGI("aux", "3");
+                    LOGI("aux", "防干烧60秒时间到,调7档");
+                    udp_voice_write_sync("防干烧,切换小火", strlen("防干烧,切换小火"), 50);
                     change_multivalve_gear(0x07, INPUT_RIGHT);
                     time_pan_warn_1 = aos_now_ms();
                     beep_control_cb(0x02); 
@@ -1341,10 +1351,14 @@ void mode_fry_func(aux_handle_t *aux_handle)
             }
             else
             {
+                LOGI("aux", "4");
                 if (time_pan_warn_2 == 0)
                 {
+                    LOGI("aux", "5");
                     if ((aos_now_ms() - time_pan_warn_1) >= 120*1000)
                     {
+                        LOGI("aux", "6");
+                        udp_voice_write_sync("防干烧,关火", strlen("防干烧,关火"), 50);
                         beep_control_cb(0x02);  
                         aux_close_fire_cb(INPUT_RIGHT);             
                         time_pan_warn_2 = aos_now_ms();    
@@ -1369,6 +1383,7 @@ void mode_fry_func(aux_handle_t *aux_handle)
             {
                 aux_handle->fry_last_gear_average_temp = aux_handle->current_average_temp;      //记录调档之前的平均温度
 
+                LOGI("aux", "低于(目标温度-15),调0档");
                 change_multivalve_gear(0x00, INPUT_RIGHT);                                      //设置为最大档加热
                 aux_handle->fry_last_change_gear_tick = 0;
             }
@@ -1393,7 +1408,7 @@ void mode_fry_func(aux_handle_t *aux_handle)
             if(aux_handle->aux_multivalve_gear != 0x03 && aux_handle->fry_last_change_gear_tick >= 10 * 4)
             {
                 aux_handle->fry_last_gear_average_temp = aux_handle->current_average_temp;
-
+                LOGI("aux", "高于(目标温度-20),调3档");
                 change_multivalve_gear(0x03, INPUT_RIGHT);
                 aux_handle->fry_last_change_gear_tick = 0;
                 aux_handle->fry_step = 3;
@@ -1536,6 +1551,7 @@ void mode_fry_func(aux_handle_t *aux_handle)
                         change_multivalve_gear(0x07, INPUT_RIGHT); //火力7档  
                         time_pan_warn_1 = aos_now_ms();
                         LOGI("aux","炸模式: 干烧提醒1");
+                        udp_voice_write_sync("防干烧,切换小火", strlen("防干烧,切换小火"), 50);
                     }
                     else
                     {
@@ -1548,6 +1564,7 @@ void mode_fry_func(aux_handle_t *aux_handle)
                                 aux_close_fire_cb(INPUT_RIGHT);
                                 time_pan_warn_2 = aos_now_ms();
                                 LOGI("aux","炸模式: 干烧提醒2");
+                                udp_voice_write_sync("防干烧,关火", strlen("防干烧,关火"), 50);
                     
                                 aux_handle->aux_switch = 0;                 
                                 if(aux_exit_cb != NULL)
@@ -3558,7 +3575,7 @@ void aux_assistant_input(enum INPUT_DIR input_dir, unsigned short temp, unsigned
         LOGW("aux","发生移锅小火，退出辅助烹饪");
         udp_voice_write_sync("发生移锅小火", strlen("发生移锅小火"), 50);
         cook_aux_init(INPUT_RIGHT);
-        aux_exit_cb(AUX_ERROR_EXIT);
+        aux_exit_cb(AUX_SUCCESS_EXIT); //AUX_ERROR_EXIT
         return;
     }
 
