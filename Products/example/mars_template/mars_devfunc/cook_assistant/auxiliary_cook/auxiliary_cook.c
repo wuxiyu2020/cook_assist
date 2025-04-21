@@ -28,6 +28,8 @@ NetworkAddr udp_dest_addr = {0x00};
 #define UDP_VOICE_MSG_QUEUE_SIZE (8)
 aos_queue_t udp_voice_msg_queue;
 char udp_voice_msg_queue_buff[UDP_VOICE_MSG_QUEUE_SIZE * 4];
+#define AUX_COOK_VOICE_KV   "aux_cook_voice"
+int voice_switch = 0;
 
 ring_buffer_t fire_gear_queue;
 
@@ -177,6 +179,11 @@ int udp_voice_deinit()
 int udp_voice_write_sync(const unsigned char* p_data, unsigned int datalen,unsigned int timeout_ms)
 {
     if ((intptr_t) - 1 == fd)
+    {
+        return -1;
+    }
+
+    if (voice_switch == 0)
     {
         return -1;
     }
@@ -1346,7 +1353,7 @@ void mode_fry_func(aux_handle_t *aux_handle)
                     udp_voice_write_sync("防干烧,切换小火", strlen("防干烧,切换小火"), 50);
                     change_multivalve_gear(0x07, INPUT_RIGHT);
                     time_pan_warn_1 = aos_now_ms();
-                    beep_control_cb(0x02); 
+                    beep_control_cb(0x02);
                 }    
             }
             else
@@ -3623,4 +3630,17 @@ void aux_assistant_input(enum INPUT_DIR input_dir, unsigned short temp, unsigned
     }
 }
 
-
+void mars_ac_init()
+{
+    unsigned char value = 0;
+    int len = sizeof(value);
+    int ret = aos_kv_get(AUX_COOK_VOICE_KV, &value, &len);
+    if (ret == 0 && len > 0) 
+    {
+        if (value == 0x31)
+        {
+            voice_switch = 1;
+            LOGW("mars", "打开辅助烹饪的语音开关");
+        }
+    }
+}

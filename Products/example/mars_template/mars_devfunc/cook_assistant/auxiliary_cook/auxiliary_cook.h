@@ -141,6 +141,6 @@ void chao_heat_onion(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle);    //葱姜
 void chao_heat_food(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle);     //炒食物
 
 
-
+void mars_ac_init();
 
 #endif

@@ -929,6 +929,7 @@ int mars_devmgr_init(void)
     g_user_example_ctx.status.WifiSWVersion[0] = ver;
     LOGI("mars", "app ver: %s (%02d 0x%02X)", aos_get_app_version(), g_user_example_ctx.status.WifiSWVersion[0], g_user_example_ctx.status.WifiSWVersion[0]);
 
+    mars_ac_init();
     mars_irtInit();
     mars_ca_init();
     sync_wifi_property();

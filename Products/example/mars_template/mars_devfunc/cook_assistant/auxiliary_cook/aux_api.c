@@ -32,7 +32,7 @@ void set_aux_ignition_switch(unsigned char ignition_switch, enum INPUT_DIR input
     }
     else //关火
     {
-        //LOGI("aux", "右灶关闭,退出辅助烹饪!!!");
+        LOGI("aux", "右灶关闭 ===> 请求退出辅助烹饪");
         multi_valve_cb(INPUT_RIGHT, 0);
         aux_exit_cb(AUX_SUCCESS_EXIT);
         cook_aux_reinit(input_dir);
@@ -72,11 +72,10 @@ void exit_aux_func(enum INPUT_DIR input_dir)
     aux_handle_t *aux_handle = get_aux_handle(input_dir);
     if(aux_handle->aux_switch != 0)
     {
-        LOGI("aux", "退出辅助烹饪!!!");
+        LOGI("aux", "手自一体未处于最大档 ===> 请求退出辅助烹饪");
         aux_exit_cb(AUX_SUCCESS_EXIT);
-        multi_valve_cb(INPUT_RIGHT, 0);
-        beep_control_cb(0x02);
-        cook_aux_reinit(input_dir);            
+        multi_valve_cb(INPUT_RIGHT, 0);        
+        cook_aux_reinit(input_dir);
     }
 }
 
