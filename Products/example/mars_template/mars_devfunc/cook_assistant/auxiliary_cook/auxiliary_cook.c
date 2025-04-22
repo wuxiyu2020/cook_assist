@@ -1875,7 +1875,7 @@ void chao_heat_pan_oil_onion(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
     }
 }
 
-void chao_heat_pan(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)//⇨ ↑↑↑ ↓↓↓
+void chao_heat_pan(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
 {
     //去除温度曲线的毛刺，借助chatgpt，从第一个稳定的温度开始（如何找第一个稳定的温度：连续10个温度，相邻两个温度之间不超过3度），相邻两个温度的绝对值不能超过±3度，超过了就把这个温度去除掉
     static temp_value_t temp_value_last = {0x00};
@@ -1893,6 +1893,8 @@ void chao_heat_pan(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)//⇨ ↑↑↑
     static uint64_t time_warn_1     = 0;    //第一次警告的时间
     static uint64_t time_warn_2     = 0;    //第二次警告的时间
 
+    static int slope_cnt = 0;
+
     if (fsm->state_time == 0)
     {
         udp_voice_write_sync("开始热锅", strlen("开始热锅"), 50);
@@ -1902,7 +1904,6 @@ void chao_heat_pan(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)//⇨ ↑↑↑
 
         temp_arrivate = false;
         is_remind     = false;
-        
 
         time_down_trend = 0;    //下降趋势的起始时间
         temp_down_trend = 0;    //下降趋势的最低温度
@@ -1911,14 +1912,16 @@ void chao_heat_pan(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)//⇨ ↑↑↑
         
         time_warn_1 = 0;
         time_warn_2 = 0;
+
+        slope_cnt   = 0;
     }
 
     double slope;
     bool   slope_flag = false;
     if ((aos_now_ms() - temp_value_last.time) >= (3*1000))  //每隔3秒钟就判断1次是否切换状态（如果用户下油了，就切换到热油状态）
-    {
-        static int slope_cnt = 0;
-        temp_value_t temp_value_now = {
+    {        
+        temp_value_t temp_value_now = 
+        {
             .time = aos_now_ms(),
             .temp = temp_mid
         };
@@ -1931,21 +1934,13 @@ void chao_heat_pan(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)//⇨ ↑↑↑
             (int)(temp_value_now.time/1000),  temp_value_now.temp, 
             slope, temp_cur, temp_mid);
 
-        if ((slope > 3.0) && (temp_mid <= 2000))    //根据斜率来判断当前的状态
-        {
-            //switch_fsm_state(fsm, chao_heat_oil);
-        }
-
-        if ((slope < 0.2) && (temp_mid <= 1700))    //根据斜率来判断当前的状态
-        {
-            //switch_fsm_state(fsm, chao_heat_onion);
-        }
-
         temp_value_last = temp_value_now;
     }
 
-    //一直处于热锅阶段里面
-    if (temp_mid < 190*10)
+    //火力档位调节逻辑(注意不要太频繁)
+    //状态切换逻辑
+    //干烧报警逻辑
+    if (temp_mid < 200*10)
     {
         //LOGI("aux","炒模式(热锅阶段): 切换火力到1档 (%d)", temp_mid);
         change_multivalve_gear(0x01, INPUT_RIGHT);
@@ -2006,12 +2001,12 @@ void chao_heat_pan(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)//⇨ ↑↑↑
     else
     {
         if (temp_mid < 210*10)
-        {                  
-            change_multivalve_gear(0x04, INPUT_RIGHT); //火力4档
+        {
+            change_multivalve_gear(0x04, INPUT_RIGHT);
         }
         else
         {
-            change_multivalve_gear(0x07, INPUT_RIGHT); //火力7档
+            change_multivalve_gear(0x07, INPUT_RIGHT);
         }
 
         temp_arrivate = true;      
