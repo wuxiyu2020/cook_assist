@@ -559,9 +559,6 @@ void cook_aux_init(enum INPUT_DIR input_dir)
  */
 void aux_temp_save(aux_handle_t *aux_handle, unsigned short temp)
 {
-    static uint16_t window_average[ARRAY_DATA_SIZE] = {0x00};
-    static uint8_t  window_average_size = 0;
-
     //首次未存满的时候，按顺序存入
     if(aux_handle->temp_size < ARRAY_DATA_SIZE)
     {
@@ -612,27 +609,6 @@ void aux_temp_save(aux_handle_t *aux_handle, unsigned short temp)
             LOGI("aux","aux deal average temp data error!!! ");
         }
     }
-
-    // window_average[window_average_size] = average_temp;
-    // window_average_size++;
-    // if(aux_handle->aux_total_tick % ARRAY_DATA_SIZE == 0)
-    // {
-    //     uint8_t szArray[128] = {0x00};
-    //     uint8_t szArrayAverage[128] = {0x00};
-    //     for (int i=0; i<ARRAY_DATA_SIZE; i++)
-    //     {
-    //         sprintf(szArray + strlen(szArray), "%d ", aux_handle->temp_array[i]);
-    //         sprintf(szArrayAverage + strlen(szArrayAverage),  "%d ", window_average[i]);
-    //     }
-
-    //     LOGI("aux","*****************************");
-    //     LOGI("aux","统计 实时温度: %s", szArray);
-    //     //LOGI("aux","统计 平均温度(隔离): %d", average_temp);
-    //     //LOGI("aux","统计 平均温度(连续): %s", szArrayAverage);
-
-    //     memset(window_average, 0x00, sizeof(window_average));
-    //     window_average_size = 0x00;
-    // }
 }
 
 

@@ -876,20 +876,29 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
             //     break;
             // }
 
-            if (mars_template_ctx->status.AuxCookSwitch != AuxCookSwitch || mars_template_ctx->status.AuxCookMode != AuxCookMode || \
-            mars_template_ctx->status.AuxCookSetTime != AuxTime || mars_template_ctx->status.AuxCookSetTemp != AuxTemp)
+            if ( mars_template_ctx->status.AuxCookSwitch != AuxCookSwitch || 
+                 mars_template_ctx->status.AuxCookMode != AuxCookMode ||
+                 mars_template_ctx->status.AuxCookSetTime != AuxTime || 
+                 mars_template_ctx->status.AuxCookSetTemp != AuxTemp)
             {
-                LOGI("mars", "解析属性0x%02X: 辅助烹饪发生变化(%d %d %d %d -> %d %d %d %d)", msg->msg_buf[(*index)], mars_template_ctx->status.AuxCookSwitch, mars_template_ctx->status.AuxCookMode, \
-                mars_template_ctx->status.AuxCookSetTime, mars_template_ctx->status.AuxCookSetTemp, AuxCookSwitch, AuxCookMode, AuxTime, AuxTemp);
+                LOGI("mars", "解析属性0x%02X: 辅助烹饪发生变化(%d %d %d %d -> %d %d %d %d)", msg->msg_buf[(*index)], 
+                mars_template_ctx->status.AuxCookSwitch, 
+                mars_template_ctx->status.AuxCookMode,
+                mars_template_ctx->status.AuxCookSetTime, 
+                mars_template_ctx->status.AuxCookSetTemp, 
+                AuxCookSwitch, 
+                AuxCookMode, 
+                AuxTime, 
+                AuxTemp);
 
-                if(mars_template_ctx->status.AuxCookSwitch == 1 && AuxCookSwitch == 0)
+                if (mars_template_ctx->status.AuxCookSwitch == 1 && AuxCookSwitch == 0)
                 {
-                    LOGI("mars","电控端 主动退出辅助烹饪");
-                    char buf_setmsg[8] = {0};
-                    int buf_len = 0;
-                    buf_setmsg[buf_len++] = prop_AuxCookStatus;
-                    buf_setmsg[buf_len++] = 0x01;                    
-                    Mars_uartmsg_send(cmd_store,uart_get_seq_mid(),buf_setmsg,buf_len,3);
+                    // LOGI("mars","电控端 主动退出辅助烹饪");
+                    // char buf_setmsg[8] = {0};
+                    // int buf_len = 0;
+                    // buf_setmsg[buf_len++] = prop_AuxCookStatus;
+                    // buf_setmsg[buf_len++] = 0x01;                    
+                    // Mars_uartmsg_send(cmd_store,uart_get_seq_mid(),buf_setmsg,buf_len,3);
                 }
 
                 //设置为炖模式，但是没有设置炖的时间，错误设定
@@ -1615,14 +1624,17 @@ void mars_sensor_uartMsgFromSlave(uartmsg_que_t *msg,
         {
             if (mars_template_ctx->status.MultiVaveStatus != msg->msg_buf[(*index)+1])
             {
-                LOGI("mars", "解析属性0x%02X: 八段阀处于最大挡位置变化(%d - %d)", msg->msg_buf[(*index)], mars_template_ctx->status.MultiVaveStatus, msg->msg_buf[(*index)+1]);
+                LOGI("mars", "解析属性0x%02X: [手自一体阀]位置变化(%d - %d)", msg->msg_buf[(*index)], mars_template_ctx->status.MultiVaveStatus, msg->msg_buf[(*index)+1]);
                 //*report_en = true;
                 mars_template_ctx->status.MultiVaveStatus = msg->msg_buf[(*index)+1];
 
                 if (mars_template_ctx->status.MultiVaveStatus == 0)
                 {
-                    LOGW("mars", "用户手动调火");
-                    //exit_aux_func(1);
+                    if( mars_template_ctx->status.AuxCookSwitch == 1)
+                    {
+                        udp_voice_write_sync("用户手动调节火力", strlen("用户手动调节火力"), 50);
+                        //exit_aux_func(1);
+                    }
                 }
             }
 
