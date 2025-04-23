@@ -57,10 +57,10 @@ enum DEVIECE_NET_STATE
 
 typedef enum AUXCOOKMODE
 {
-    MODE_CHAO = 1,          //炒模式
-    MODE_ZHU = 2,           //煮模式
-    MODE_JIAN = 3,          //煎模式
-    MODE_ZHA = 4            //炸模式
+    MODE_CHAO = 1,              //炒模式
+    MODE_ZHU  = 2,              //煮模式
+    MODE_JIAN = 3,              //煎模式
+    MODE_ZHA  = 4               //炸模式
 } aux_cook_mode;
 
 typedef enum{
