@@ -1632,8 +1632,8 @@ void mars_sensor_uartMsgFromSlave(uartmsg_que_t *msg,
                 {
                     if( mars_template_ctx->status.AuxCookSwitch == 1)
                     {
-                        udp_voice_write_sync("用户手动调节火力", strlen("用户手动调节火力"), 50);
-                        //exit_aux_func(1);
+                        udp_voice_write_sync("用户手动调节旋钮", strlen("用户手动调节旋钮"), 50);
+                        exit_aux_func(1);
                     }
                 }
             }
