@@ -1178,6 +1178,7 @@ void mode_fry_func(aux_handle_t *aux_handle)
 
     if (aux_handle->aux_total_tick == 10)  //开启炸模式后的第一个温度
     {
+        //change_multivalve_gear(0x01, INPUT_RIGHT);
         LOGI("aux","mode_fry_func: enter fry mode temp: %d %d ", aux_handle->aux_total_tick, aux_handle->current_average_temp);
         enter_mode_temp = aux_handle->current_average_temp;
         aux_handle->fry_step = 0;               //重置炸场景步骤
@@ -1285,16 +1286,17 @@ void mode_fry_func(aux_handle_t *aux_handle)
     //处于热锅阶段，进行热锅阶段温控逻辑
     if(aux_handle->fry_step == 1 && gentle_flag == true)  //调小火
     {
-        if(aux_handle->current_average_temp >= 150 * 10 && aux_handle->current_average_temp < 200 * 10 && aux_handle->first_hot_pot_flag == 0)
+        if(aux_handle->current_average_temp >= 180 * 10 && aux_handle->current_average_temp < 200 * 10 && aux_handle->first_hot_pot_flag == 0)
         {
-            LOGI("aux", "热锅温度150-200,调6档");
-            change_multivalve_gear(0x06, INPUT_RIGHT);
+            LOGI("aux", "热锅温度[180,200),调4档");
+            change_multivalve_gear(0x04, INPUT_RIGHT);
             aux_handle->fry_last_change_gear_tick = 0;
             aux_handle->first_hot_pot_flag = 1;
             time_pan_remind = aos_now_ms();
             if(beep_control_cb != NULL)
             {
                 beep_control_cb(0x02);          //提醒用户加油
+                udp_voice_write_sync("请到油", strlen("请到油"), 50);
             }
         }
         else if(aux_handle->current_average_temp > 200 * 10)
@@ -1327,7 +1329,7 @@ void mode_fry_func(aux_handle_t *aux_handle)
                 {
                     LOGI("aux", "3");
                     LOGI("aux", "防干烧60秒时间到,调7档");
-                    udp_voice_write_sync("防干烧,切换小火", strlen("防干烧,切换小火"), 50);
+                    udp_voice_write_sync("防止干烧,切换小火", strlen("防止干烧,切换小火"), 50);
                     change_multivalve_gear(0x07, INPUT_RIGHT);
                     time_pan_warn_1 = aos_now_ms();
                     beep_control_cb(0x02);
@@ -1342,7 +1344,7 @@ void mode_fry_func(aux_handle_t *aux_handle)
                     if ((aos_now_ms() - time_pan_warn_1) >= 120*1000)
                     {
                         LOGI("aux", "6");
-                        udp_voice_write_sync("防干烧,关火", strlen("防干烧,关火"), 50);
+                        udp_voice_write_sync("防止干烧,关闭右灶", strlen("防止干烧,关闭右灶"), 50);
                         beep_control_cb(0x02);  
                         aux_close_fire_cb(INPUT_RIGHT);             
                         time_pan_warn_2 = aos_now_ms();    
@@ -1480,6 +1482,7 @@ void mode_fry_func(aux_handle_t *aux_handle)
         {
             LOGI("aux","首次达到设定的目标温度，current_average_temp:%d,set_temp:%d",aux_handle->current_average_temp, aux_handle->aux_set_temp * 10);
             beep_control_cb(0x02);
+            udp_voice_write_sync("请放入食材", strlen("请放入食材"), 50);
             aux_handle->first_reach_set_temp_flag = 1;
             time_oil_remind = aos_now_ms();
         }
@@ -1500,10 +1503,10 @@ void mode_fry_func(aux_handle_t *aux_handle)
                 int time_diff = (aos_now_ms() - time_up_trend_burn);
                 if (time_diff > 3*60*1000)
                 {
-                    //udp_voice_write_sync("防止干烧,切换小火", strlen("防止干烧,切换小火"), 50);
+                    udp_voice_write_sync("请搅拌,注意焦糊", strlen("请搅拌,注意焦糊"), 50);
                     beep_control_cb(0x02);
                     time_up_trend_burn = 0;
-                    LOGI("aux","炸模式: 焦糊提醒");
+                    LOGI("aux","炸模式: 这里是焦糊提醒");
                 }
             }
         }
@@ -1535,7 +1538,7 @@ void mode_fry_func(aux_handle_t *aux_handle)
                         change_multivalve_gear(0x07, INPUT_RIGHT); //火力7档  
                         time_pan_warn_1 = aos_now_ms();
                         LOGI("aux","炸模式: 干烧提醒1");
-                        udp_voice_write_sync("防干烧,切换小火", strlen("防干烧,切换小火"), 50);
+                        udp_voice_write_sync("防止干烧,切换小火", strlen("防止干烧,切换小火"), 50);
                     }
                     else
                     {
@@ -1548,7 +1551,7 @@ void mode_fry_func(aux_handle_t *aux_handle)
                                 aux_close_fire_cb(INPUT_RIGHT);
                                 time_pan_warn_2 = aos_now_ms();
                                 LOGI("aux","炸模式: 干烧提醒2");
-                                udp_voice_write_sync("防干烧,关火", strlen("防干烧,关火"), 50);
+                                udp_voice_write_sync("防止干烧,关闭右灶", strlen("防止干烧,关闭右灶"), 50);
                     
                                 aux_handle->aux_switch = 0;                 
                                 if(aux_exit_cb != NULL)
@@ -1616,17 +1619,17 @@ void mode_fry_func(aux_handle_t *aux_handle)
             //温度高于目标温度5摄氏度以上，降低火力操作（档位越大火力越小）
             if(aux_handle->current_average_temp >= aux_handle->aux_set_temp * 10 + 10 * 5)
             {
-                gear = aux_handle->aux_multivalve_gear + 3;
+                gear = 7; //aux_handle->aux_multivalve_gear + 3;
                 LOGI("aux","控温阶段: 修正火力档位 %d 档 (x+3) ", gear);
             }
             else if(aux_handle->current_average_temp >= aux_handle->aux_set_temp * 10)
             {
-                gear = aux_handle->aux_multivalve_gear + 2;
+                gear = 5; //aux_handle->aux_multivalve_gear + 2;
                 LOGI("aux","控温阶段: 修正火力档位 %d 档 (x+2) ", gear);
             }
             else if(aux_handle->current_average_temp >= aux_handle->aux_set_temp * 10 - 5 * 10)
             {
-                gear = aux_handle->aux_multivalve_gear + 1;
+                gear = 5; //aux_handle->aux_multivalve_gear + 1;
                 LOGI("aux","控温阶段: 修正火力档位 %d 档 (x+1) ", gear);
             }
             aux_handle->fry_last_gear_average_temp = aux_handle->current_average_temp;
@@ -1947,13 +1950,13 @@ void chao_heat_pan(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
     {
         if (!temp_arrivate)
         {
-            if (temp_cur < 200*10)
+            if (temp_cur < 180*10)
             {
                 change_multivalve_gear(0x01, INPUT_RIGHT);
             }
             else
             {
-                if (temp_cur < 210*10)
+                if (temp_cur < 200*10)
                 {
                     change_multivalve_gear(0x04, INPUT_RIGHT);
                 }
@@ -1974,7 +1977,7 @@ void chao_heat_pan(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
         else
         {
             //这里是否会导致火力切换频繁??? 需要加个时间限定一下
-            if (temp_cur < 200*10)
+            if (temp_cur < 150*10)
             {
                 change_multivalve_gear(0x01, INPUT_RIGHT);
             }
@@ -2129,7 +2132,7 @@ void chao_heat_oil(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
     {
         if (!temp_arrivate)
         {
-            if (temp_cur < 200*10)
+            if (temp_cur < 180*10)
             {
                 change_multivalve_gear(0x05, INPUT_RIGHT);
             }
@@ -2149,7 +2152,7 @@ void chao_heat_oil(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
         else
         {
             //这里是否会导致火力切换频繁??? 需要加个时间限定一下
-            if (temp_cur < 200*10)
+            if (temp_cur < 160*10)
             {
                 change_multivalve_gear(0x05, INPUT_RIGHT);
             }
@@ -2367,7 +2370,7 @@ void chao_heat_onion(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
             }
             else
             {
-                time_dn_trend = 0;  //再次等待温度下降(本地温度下降并不是因为下菜)
+                time_dn_trend = 0;  //再次等待温度下降(本次温度下降并不是因为下菜引起的)
                 temp_dn_trend = 0;
                 temp_up_trend = 0;
                 // LOGI("aux", "炒模式(%d): ⇨ 热锅热油爆香 (耗时%d秒)",aux_handle->fsm_chao_loop_cnt, (int)((aos_now_ms() - fsm->state_time)/1000));
@@ -2424,6 +2427,10 @@ void chao_heat_food(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
     static uint64_t time_warn_1   = 0;    //第一次警告的时间
     static uint64_t time_warn_2   = 0;    //第二次警告的时间 
 
+    static bool bujiu_flag        = false;
+    static uint64_t time_warn_0   = 0;
+
+
     uint16_t temp_cur = aux_handle->temp_array[ARRAY_DATA_SIZE - 1];            // 最新温度
     uint16_t temp_mid = findMedian(aux_handle->temp_array, ARRAY_DATA_SIZE);    // 中位温度
     uint16_t temp_min = findMin(aux_handle->temp_array,    ARRAY_DATA_SIZE);    // 最小温度
@@ -2444,7 +2451,9 @@ void chao_heat_food(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
         time_up_trend = 0;
         time_warn_1   = 0;    //第一次警告的时间
         time_warn_2   = 0;    //第二次警告的时间
-    
+
+        bujiu_flag    = false;
+        time_warn_0   = 0;
     }
 
     double slope;
@@ -2467,9 +2476,9 @@ void chao_heat_food(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
         temp_value_last = temp_value_now;
     }
 
-    if (time_warn_1 == 0)
+    if ((time_warn_1 == 0) && (!bujiu_flag))
     {
-        if ((tick_switch == 0) || aos_now_ms() - tick_switch >= 10*1000)
+        if ((tick_switch == 0) || aos_now_ms() - tick_switch >= 5*1000)
         {
             if (temp_cur < 100*10)
             {
@@ -2489,11 +2498,38 @@ void chao_heat_food(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
     if (check_any_large_diff(aux_handle->temp_array, ARRAY_DATA_SIZE))  //温度波动是否大于5
     {
         body_exist_flag = true;
+        LOGI("aux","炒模式(炒): 有人存在");
     }
     else
     {
         body_exist_flag = false;
         LOGI("aux","炒模式(炒): 无人存在!!! 无人存在!!! 无人存在!!!");
+    }
+
+    if (!body_exist_flag)  //无人存在
+    {
+        if (time_warn_0 == 0) 
+        {
+            time_warn_0 = aos_now_ms();
+        }
+        else
+        {
+            int time_diff = (aos_now_ms() - time_warn_0);
+            if (time_diff > 5*1000)
+            {
+                if (!bujiu_flag)
+                {
+                    //udp_voice_write_sync("为防止焦糊,切换5档火力", strlen("为防止焦糊,切换5档火力"), 50);
+                    change_multivalve_gear(0x05, INPUT_RIGHT);  
+                    bujiu_flag = true;
+                }
+            }
+        }
+    }
+    else
+    {
+        bujiu_flag    = false;
+        time_warn_0   = 0;
     }
 
     if (!body_exist_flag)  //无人存在
@@ -2505,13 +2541,13 @@ void chao_heat_food(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
         else
         {
             int time_diff = (aos_now_ms() - time_up_trend);
-            if (time_diff > 30*1000)
+            if (time_diff > 15*1000)
             {
                 if (time_warn_1 == 0)
                 {
                     udp_voice_write_sync("为防止干烧,降低火力", strlen("为防止干烧,降低火力"), 50);
                     beep_control_cb(0x02);  
-                    change_multivalve_gear(0x05, INPUT_RIGHT); //火力7档  
+                    change_multivalve_gear(0x07, INPUT_RIGHT); //火力7档  
                     time_warn_1 = aos_now_ms();
                 }
                 else
@@ -2553,7 +2589,7 @@ void mode_chao_func(aux_handle_t *aux_handle)
 {
     if (aux_handle->fsm_chao.state_func == NULL)
     {
-        switch_fsm_state(&aux_handle->fsm_chao, chao_heat_pan);//chao_heat_pan_oil_onion
+        switch_fsm_state(&aux_handle->fsm_chao, chao_heat_pan);//chao_heat_pan chao_heat_pan_oil_onion
     }
 
     run_fsm(&aux_handle->fsm_chao, aux_handle);
@@ -2608,9 +2644,9 @@ bool judge_cook_trend_turn_over(uint16_t array[], uint16_t length)
 
     int diff = ( (int)(array[ARRAY_DATA_SIZE - 1]) - (int)(array[0]) );
     bool res = judge_cook_trend_rise(array, ARRAY_DATA_SIZE, 3);
-    if (res && (diff > 60*10))
+    if (res && (diff > 30*10))
     {
-        LOGI("aux", " 检测到翻面 检测到翻面 检测到翻面  (diff=%d)", diff);
+        LOGI("aux", " ********检测到翻面 检测到翻面 检测到翻面**********  (diff=%d)", diff);
         return true;
     } 
     else
@@ -2681,10 +2717,6 @@ bool check_any_large_diff(uint16_t array[], uint16_t length)
 void jian_heat_pan_oil(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
 {
     static temp_value_t temp_value_last = {0x00};
-    uint16_t temp_cur = aux_handle->temp_array[ARRAY_DATA_SIZE - 1];            // 最新温度
-    uint16_t temp_mid = findMedian(aux_handle->temp_array, ARRAY_DATA_SIZE);    // 中位数温度
-    uint16_t temp_min = findMin(aux_handle->temp_array,    ARRAY_DATA_SIZE);    // 最小温度
-    uint16_t temp_max = findMax(aux_handle->temp_array,    ARRAY_DATA_SIZE);    // 最大温度
 
     static uint64_t time_down_trend = 0;    //下降趋势的起始时间
     static uint16_t temp_dn_trend   = 0;    //下降期间的最低温度
@@ -2697,16 +2729,26 @@ void jian_heat_pan_oil(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
 
     static int slope_cnt            = 0;
 
+    uint16_t temp_cur = aux_handle->temp_array[ARRAY_DATA_SIZE - 1];            // 最新温度
+    uint16_t temp_mid = findMedian(aux_handle->temp_array, ARRAY_DATA_SIZE);    // 中位数温度
+    uint16_t temp_min = findMin(aux_handle->temp_array,    ARRAY_DATA_SIZE);    // 最小温度
+    uint16_t temp_max = findMax(aux_handle->temp_array,    ARRAY_DATA_SIZE);    // 最大温度
+
+
     if (fsm->state_time == 0)
     {
         set_fsm_time(fsm);
         temp_value_last = save_current_temp(temp_mid);
 
         if (aux_handle->fsm_jian_loop_cnt == 0)
-            udp_voice_write_sync("开始热锅热油", strlen("开始热锅热油"), 50);
+        {
+            udp_voice_write_sync("开始热锅", strlen("开始热锅"), 50);
+        }
         else
-            udp_voice_write_sync("再次热锅热油", strlen("再次热锅热油"), 50);
-        LOGI("aux","煎模式(%d): 进入热锅热油", aux_handle->fsm_jian_loop_cnt);
+        {
+            udp_voice_write_sync("开始热油", strlen("开始热油"), 50);
+        }
+        LOGI("aux","煎模式(%d): 进入热锅或者热油阶段", aux_handle->fsm_jian_loop_cnt);
 
         time_down_trend = 0;
         temp_dn_trend   = 0;
@@ -2734,79 +2776,70 @@ void jian_heat_pan_oil(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
         slope_cnt++;
         slope_flag = true;
 
-        LOGI("aux", "煎模式(%d): *****判断斜率(%d)***** (%d %d) ===> (%d %d) [斜率=%f · 最新温度=%d · 中位数温度=%d]", 
+        LOGI("aux", "煎模式(%d): *****判断斜率(%d)***** (%d %d) ===> (%d %d) [斜率=%f]", 
             aux_handle->fsm_jian_loop_cnt, 
             slope_cnt,
             (int)(temp_value_last.time/1000), temp_value_last.temp, 
             (int)(temp_value_now.time/1000),  temp_value_now.temp, 
-            slope, temp_cur, temp_mid);
+            slope);
 
         temp_value_last = temp_value_now;
     }
 
-    if (temp_cur < 200*10)
+    if (time_warn_1 == 0)
     {
         if (!temp_arrivate)
         {
-            change_multivalve_gear(0x01, INPUT_RIGHT);
-        }
-        else
-        {
-            if (time_warn_1 == 0)
+            if (temp_cur < 180*10)
             {
-                if (temp_cur < 180*10)
-                {
-                    change_multivalve_gear(0x01, INPUT_RIGHT);
-                }
+                change_multivalve_gear(0x01, INPUT_RIGHT);
             }
-        }
-    }
-    else if (temp_cur < 210*10)
-    {        
-        if (!temp_arrivate)
-        {
-            change_multivalve_gear(0x04, INPUT_RIGHT);
-        }
-        else
-        {
-            if (time_warn_1 == 0)
+            else
             {
-                if (temp_cur < 190*10)
+                if (temp_cur < 200*10)
                 {
                     change_multivalve_gear(0x04, INPUT_RIGHT);
                 }
+                else
+                {
+                    change_multivalve_gear(0x07, INPUT_RIGHT);
+                }
+        
+                if (!temp_arrivate)
+                {
+                    if (aux_handle->fsm_jian_loop_cnt == 0)
+                        udp_voice_write_sync("请下油", strlen("请下油"), 50);
+                    else
+                        udp_voice_write_sync("请下食材", strlen("请下食材"), 50);
+                    beep_control_cb(0x02);
+                    temp_arrivate = true;
+                    time_remind = aos_now_ms();
+                }
             }
         }
-        
-        if (!temp_arrivate)
+        else
         {
-            temp_arrivate = true;
-            udp_voice_write_sync("请操作", strlen("请操作"), 50);
-            beep_control_cb(0x02);
-            time_remind = aos_now_ms(); //此后30秒内必须要切到其他状态去,否则会干烧报警
+            //热油阶段时，如果把锅晃几下，会不会导致火力切换频繁? 是否需要加个时间限定一下
+            //如果加了5秒时间限定了，那用户真的下菜时，是不是会最大会耽误5秒？
+            if (temp_cur < 160*10)
+            {
+                change_multivalve_gear(0x01, INPUT_RIGHT);
+            }
+            else
+            {
+                change_multivalve_gear(0x07, INPUT_RIGHT);
+            }
         }
-    }
-    else
-    {
-        change_multivalve_gear(0x07, INPUT_RIGHT);
-
-        if (!temp_arrivate)
-        {
-            temp_arrivate = true;
-            udp_voice_write_sync("请操作", strlen("请操作"), 50);
-            beep_control_cb(0x02);
-            time_remind = aos_now_ms();
-        }
-    }
+    } 
 
     //情况一：锅里本来就有食物(前6秒就能判断出来升温慢，然后切入到煎食物阶段)  
     if (aux_handle->fsm_jian_loop_cnt == 0)
     {
         if (!is_fsm_timeout(fsm, 6500))  //锅里有菜,直接跳转到热菜阶段
         {
-            if (slope_flag && slope < 10.0)
+            if (slope_flag && (slope < 10.0) && (slope > 0.1))
             {
-                LOGI("aux", "煎模式(%d): 起始温升慢 ⇨ 煎食材 (%f)", aux_handle->fsm_jian_loop_cnt, slope);
+                LOGI("aux", "煎模式(%d): 起始6秒内温升慢 ⇨ 煎食材 (%f)", aux_handle->fsm_jian_loop_cnt, slope);
                 beep_control_cb(0x02);  
                 switch_fsm_state(fsm, jian_heat_food);
             }
@@ -2825,6 +2858,12 @@ void jian_heat_pan_oil(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
             time_down_trend = aos_now_ms();
             temp_dn_trend   = temp_min;
             temp_up_trend   = temp_max;
+
+            if (time_warn_1 != 0) //开大火加热，并观察曲线，我觉得这里是漏掉的(第一次报警后，这时人工介入，放油或者放食材)
+            {
+                LOGI("aux", "煎模式(%d): 温度骤降,打破报警1的小火阶段,开始大火加热", aux_handle->fsm_jian_loop_cnt);
+                change_multivalve_gear(0x01, INPUT_RIGHT);
+            }
         }
     }
     else
@@ -2837,19 +2876,28 @@ void jian_heat_pan_oil(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
 
         if (aos_now_ms() - time_down_trend >= 10*1000)
         {
-            LOGI("aux","煎模式(%d): 10秒内从%d上升到%d 差值=%d", aux_handle->fsm_jian_loop_cnt, temp_dn_trend, temp_max, temp_max-temp_dn_trend);
-            if (temp_max < 100*10)  //煎模式下油加热10秒一定会超过100度?
-            {
+            LOGI("aux","煎模式(%d): 加热10秒后,从%d上升到%d(限定条件是100度) 差值=%d", aux_handle->fsm_jian_loop_cnt, temp_dn_trend, temp_max, temp_max-temp_dn_trend);
+            if (temp_max < 100*10)  //热锅到90度，然后提前下油，加热8秒后，发现温度是94，因此这里的限定条件要从100度改成80度
+            {//这里有矛盾的地方: 
                 LOGI("aux", "煎模式(%d): ⇨ 煎食材 (耗时%d秒)",aux_handle->fsm_jian_loop_cnt, (int)((aos_now_ms() - fsm->state_time)/1000));
                 switch_fsm_state(fsm, jian_heat_food);
                 beep_control_cb(0x02);
             }
             else
             {
-                LOGI("aux", "煎模式(%d): ⇨ 热锅热油 (耗时%d秒)", aux_handle->fsm_jian_loop_cnt, (int)((aos_now_ms() - fsm->state_time)/1000));
-                switch_fsm_state(fsm, jian_heat_pan_oil);
-                aux_handle->fsm_jian_loop_cnt++;
-                beep_control_cb(0x02);
+                if (aux_handle->fsm_jian_loop_cnt == 0)
+                {
+                    LOGI("aux", "煎模式(%d): ⇨ 热锅热油 (耗时%d秒)", aux_handle->fsm_jian_loop_cnt, (int)((aos_now_ms() - fsm->state_time)/1000));
+                    switch_fsm_state(fsm, jian_heat_pan_oil);
+                    aux_handle->fsm_jian_loop_cnt++;
+                    beep_control_cb(0x02);
+                }
+                else
+                {
+                    time_down_trend = 0;
+                    temp_dn_trend   = 0;
+                    temp_up_trend   = 0;
+                }
             }
         }
     }
@@ -3294,6 +3342,9 @@ void jian_heat_food(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
     static uint64_t time_turn_1     = 0;    //翻面提醒1
     static uint64_t time_turn_2     = 0;    //翻面提醒2
 
+    static uint64_t time_switch     = 0;
+    static int      cnt_switch      = 0;
+
     if (fsm->state_time == 0)
     {
         set_fsm_time(fsm);
@@ -3312,6 +3363,9 @@ void jian_heat_food(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
         time_turn     = aos_now_ms();
         time_turn_1   = 0;
         time_turn_2   = 0;
+
+        time_switch   = 0;
+        cnt_switch    = 0;
     }
 
     double slope;
@@ -3337,30 +3391,61 @@ void jian_heat_food(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
         temp_value_last = temp_value_now;
     }
 
-    if (temp_cur < (100*10))
-    {
-        if ((time_warn_1 == 0) && (time_turn_1 == 0)&& (time_turn_2 == 0)) //非0就是锁定档位
-        {
-            if (!temp_arrivate)
-            {
-                change_multivalve_gear(0x03, INPUT_RIGHT);
-            }
-            else
-            {
-                if (temp_cur < (80*10))
-                {
-                    change_multivalve_gear(0x03, INPUT_RIGHT);
-                }
-            }    
-        }
-    }
-    else
-    {
-        temp_arrivate = true;
+    // if (temp_cur < (100*10))
+    // {
+    //     if ((time_warn_1 == 0) && (time_turn_1 == 0)&& (time_turn_2 == 0)) //非0就是锁定档位
+    //     {
+    //         if (!temp_arrivate)
+    //         {
+    //             change_multivalve_gear(0x03, INPUT_RIGHT);
+    //         }
+    //         else
+    //         {
+    //             if (temp_cur < (80*10))
+    //             {
+    //                 change_multivalve_gear(0x03, INPUT_RIGHT);
+    //             }
+    //         }    
+    //     }
+    // }
+    // else
+    // {
+    //     temp_arrivate = true;
 
-        if ((time_warn_1 == 0) && (time_turn_2 == 0)) //非0就是锁定档位
+    //     if ((time_warn_1 == 0) && (time_turn_2 == 0)) //非0就是锁定档位
+    //     {
+    //         change_multivalve_gear(0x06, INPUT_RIGHT);
+    //     }
+    // }
+
+    if ((time_warn_1 == 0) && (time_turn_1 == 0) && (time_turn_2 == 0)) //不处于锁定状态
+    {
+        if (!is_fsm_timeout(fsm, 30*1000))
         {
-            change_multivalve_gear(0x06, INPUT_RIGHT);
+            change_multivalve_gear(0x03, INPUT_RIGHT);
+        }
+        else
+        {
+            if ((time_switch == 0) || ((aos_now_ms() - time_switch) >= 10*1000))
+            {
+                if ((cnt_switch & 0x01) == 0x00)
+                {
+                    if (!is_fsm_timeout(fsm, 120*1000))
+                        change_multivalve_gear(0x06, INPUT_RIGHT);
+                    else
+                        change_multivalve_gear(0x07, INPUT_RIGHT);
+                }
+                else
+                {
+                    if (!is_fsm_timeout(fsm, 120*1000))
+                        change_multivalve_gear(0x03, INPUT_RIGHT);
+                    else
+                        change_multivalve_gear(0x05, INPUT_RIGHT);
+                }
+
+                time_switch = aos_now_ms();  
+                cnt_switch++;  
+            }
         }
     }
 
@@ -3385,7 +3470,7 @@ void jian_heat_food(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
         else
         {
             int time_diff = (aos_now_ms() - time_up_trend);
-            if (time_diff > 90*1000)
+            if (time_diff > 80*1000)
             {
                 if (time_warn_1 == 0)
                 {
@@ -3398,7 +3483,7 @@ void jian_heat_food(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
                 {
                     if (time_warn_2 == 0)
                     {
-                        if ((aos_now_ms() - time_warn_1) > 120*1000)
+                        if ((aos_now_ms() - time_warn_1) > 60*1000)
                         {
                             udp_voice_write_sync("防止干烧,关闭右灶", strlen("防止干烧,关闭右灶"), 50);
                             beep_control_cb(0x02);  
@@ -3428,7 +3513,7 @@ void jian_heat_food(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
     {
         if (time_turn_1 == 0)
         {
-            if ((aos_now_ms() - time_turn) > 70*1000)
+            if ((aos_now_ms() - time_turn) > 60*1000)
             {
                 udp_voice_write_sync("防止焦糊,请翻面", strlen("防止焦糊,请翻面"), 50);
                 beep_control_cb(0x02);  
