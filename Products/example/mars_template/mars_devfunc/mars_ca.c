@@ -440,7 +440,7 @@ static int dry_fire_info_cb(int type, int dryburn_reason)
             char* reason[] = {"未知原因", "高温兜底", "时间兜底", "平缓上升", "小火炖煮"};
             char voice_buff[64] = {0x00};
             snprintf(voice_buff, sizeof(voice_buff), "进入干烧,原因为%s", reason[dryburn_reason]);
-            udp_voice_write_sync(voice_buff, strlen(voice_buff), 50);
+            //udp_voice_write_sync(voice_buff, strlen(voice_buff), 50);
 
         }
         else
@@ -449,7 +449,7 @@ static int dry_fire_info_cb(int type, int dryburn_reason)
             LOGI("mars", "清除防干烧标记(移锅复位)");
             mars_beer_control(0x00);
             LOGI("mars", "退出干烧");
-            udp_voice_write_sync("退出干烧", strlen("退出干烧"), 50);
+            //udp_voice_write_sync("退出干烧", strlen("退出干烧"), 50);
         }
 
         dry_fire_state = type;

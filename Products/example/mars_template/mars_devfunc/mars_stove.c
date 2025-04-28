@@ -924,6 +924,17 @@ void mars_stove_uartMsgFromSlave(uartmsg_que_t *msg,
                         snprintf(voice_buff, sizeof(voice_buff), "%s启动", AuxMode[mars_template_ctx->status.AuxCookMode]);
                         udp_voice_write_sync(voice_buff, strlen(voice_buff), 50);
                         LOGI("mars","%s", voice_buff);
+
+                        if (mars_template_ctx->status.AuxCookMode == 2)  //炒煮煎炸
+                        {
+                            snprintf(voice_buff, sizeof(voice_buff), "定时%d分钟", mars_template_ctx->status.AuxCookSetTime);
+                            udp_voice_write_sync(voice_buff, strlen(voice_buff), 50); 
+                        }
+                        else if (mars_template_ctx->status.AuxCookMode == 4)
+                        {
+                            snprintf(voice_buff, sizeof(voice_buff), "控温%d度", mars_template_ctx->status.AuxCookSetTemp);
+                            udp_voice_write_sync(voice_buff, strlen(voice_buff), 50);    
+                        }
                     }
                     else
                     {

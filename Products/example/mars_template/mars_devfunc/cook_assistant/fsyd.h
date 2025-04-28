@@ -159,6 +159,7 @@ extern "C"
         int current_tick;                               //当前所处状态的运行,tick  当前状态运行了多久
         unsigned int total_tick;
         unsigned int tick_for_dryburn;                  //专门为防干烧时间兜底计时的变量
+        unsigned char index_for_dryburn;                //开后后防干烧兜底的轮数统计
 
         unsigned char temp_data_size;                         //ring_buffer中数据量的大小
         unsigned short last_temp;                             // 最新温度

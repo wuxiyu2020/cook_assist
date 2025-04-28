@@ -1301,6 +1301,43 @@ static int state_func_boil(unsigned char prepare_state, state_handle_t *state_ha
 
 
 //防干烧判断函数
+uint16_t calculate_average(const int *data, uint8_t count) 
+{
+    if (data == NULL || count == 0) {
+        return 0; 
+    }
+
+    uint32_t sum = 0; // 使用 uint32_t 防止溢出
+    for (uint8_t i = 0; i < count; i++) {
+        sum += data[i];
+    }
+
+    // 计算平均值并四舍五入到最近的 uint16_t 值
+    return (uint16_t)((sum + count / 2) / count);
+}
+
+bool evaluate_data_fluctuation(const uint16_t *data, uint8_t count) //判断数据波动
+{
+    if (data == NULL || count < 2) {
+        return false; 
+    }
+
+    uint16_t total_pairs = (count * (count - 1)) / 2; // 总的两两组合数
+    uint16_t exceeding_count = 0; // 记录差值大于等于 8 的对数
+
+    for (uint8_t i = 0; i < count - 1; i++) {
+        for (uint8_t j = i + 1; j < count; j++) {
+            if ((data[i] > data[j] && data[i] - data[j] > 80) ||
+                (data[j] > data[i] && data[j] - data[i] > 80)) {
+                exceeding_count++;
+            }
+        }
+    }
+
+    // 如果大于等于一半的对数超过 8，则返回 true
+    return exceeding_count * 2 >= total_pairs;
+}
+
 static int dryburn_judge(unsigned char prepare_state,state_handle_t *state_handle)
 {
     #ifdef DRYBURN_ENABLE
@@ -1404,13 +1441,30 @@ static int dryburn_judge(unsigned char prepare_state,state_handle_t *state_handl
     if(state_handle->fire_status == 0)
     {
         state_handle->tick_for_dryburn = 0;
+        state_handle->index_for_dryburn = 0;
     }
 
-    //持续开火5小时时间兜底触发防干烧
-    if(state_handle->tick_for_dryburn >= 5 * 3600 * INPUT_DATA_HZ)
+    //持续开火3小时时间兜底触发防干烧
+    //2024.12.20 modify: 右灶开火的情况下，每隔3小时判断一次时间兜底干烧，同时需要判断平均温度是否超过35度，温度超过35则触发干烧，未超35则进入下一轮时间兜底
+    if(state_handle->tick_for_dryburn >= ((3 * 3600 * INPUT_DATA_HZ) * (state_handle->index_for_dryburn + 1)))
     {
-        state_handle->dryburn_reason = 2;
-        return STATE_DRYBURN;
+        uint16_t temp_aver = calculate_average(state_handle->last_average_temp_arr, state_handle->arr_size);
+        log_info("时间兜底防干烧: 第%d轮判断 时间(%d %d) 平均温度(%d)", 
+            state_handle->index_for_dryburn + 1, 
+            state_handle->tick_for_dryburn, ((3 * 3600 * INPUT_DATA_HZ) * (state_handle->index_for_dryburn + 1)), 
+            temp_aver);
+            
+        if (temp_aver >= 350)
+        {
+            log_debug("时间兜底防干烧: 第%d轮触发干烧!!!", (state_handle->index_for_dryburn + 1));
+            state_handle->dryburn_reason = 2;
+            return STATE_DRYBURN;
+        }
+        else
+        {
+            state_handle->index_for_dryburn++;
+            log_debug("时间兜底防干烧: 平均温度不满足,进入第%d轮兜底判断", (state_handle->index_for_dryburn + 1));
+        }
     }
     
     int i;
@@ -1437,7 +1491,7 @@ static int dryburn_judge(unsigned char prepare_state,state_handle_t *state_handl
         log_debug("连续10组温度数据不变,steady temp:%d",state_handle->last_temp_data[STATE_JUDGE_DATA_SIZE-1]);
     }
     log_debug("dryburn_lock_flag:%d",dryburn_lock_flag);
-    
+
     int count_jump = 0;
     for(int i = 0; i < STATE_JUDGE_DATA_SIZE - 1; i++)
     {   
@@ -1453,7 +1507,7 @@ static int dryburn_judge(unsigned char prepare_state,state_handle_t *state_handl
             dryburn_lock_flag = 1;
         }
     }
-
+ 
     //当前平均温度大于230摄氏度且没有温度波动
     if(state_handle->last_temp_average >= 2300 && count_jump == 0)
     {
@@ -1501,16 +1555,17 @@ static int dryburn_judge(unsigned char prepare_state,state_handle_t *state_handl
 
     if(state_handle->last_temp_average < 2300)
     {
+        //log_debug("防干烧判断锁定解除（温度降低）");
         dryburn_lock_flag = 0;
     }
 
     if(dryburn_lock_flag)       //识别为直接开火，防干烧锁定
     {
-        log_debug("防干烧判断锁定，函数返回");
+        //log_debug("防干烧判断锁定，函数返回");
         return -1;
     }
 
-    if(high_temp_duration_tick1 >= 30*INPUT_DATA_HZ || high_temp_duration_tick2 >= 20*INPUT_DATA_HZ || high_temp_duration_tick3 >= 10*INPUT_DATA_HZ)
+    if(high_temp_duration_tick1 >= 50*INPUT_DATA_HZ || high_temp_duration_tick2 >= 40*INPUT_DATA_HZ || high_temp_duration_tick3 >= 30*INPUT_DATA_HZ)
     {
         log_debug("get dryburn from hightemp2");
         state_handle->dryburn_reason = 1;
@@ -1596,6 +1651,13 @@ static int dryburn_judge(unsigned char prepare_state,state_handle_t *state_handl
         log_debug("slowly_down_flag:%d\r\n",very_slowly_down_flag);
     }
 
+    static unsigned int fluctuation_tick = 0;
+    if (evaluate_data_fluctuation(state_handle->last_temp_data, STATE_JUDGE_DATA_SIZE))
+    {
+        fluctuation_tick = state_handle->total_tick;
+        log_debug("检测到温度波动: %d", fluctuation_tick);
+    }
+
     //表示首次进入一个新的状态，当前状态tick为1
     if(state_handle->current_tick == 1)
     {
@@ -1654,9 +1716,21 @@ static int dryburn_judge(unsigned char prepare_state,state_handle_t *state_handl
     else if(state_handle->current_tick > 1)
     {
          //110℃以内（因为判断温度高于平缓10℃以内判断所以100+10度内判断，否则清零），温度变化上下不超过3℃认为是非常平缓,当前温度必须大于点火前温度5℃来防止刚开火时候误触（低温误触）或者点火温度本就较高就会上升较快不需要大于点火前5度
-        if(state_handle->last_temp_average <= 1200 && state_handle->last_temp_average >= 400 && (state_handle->last_temp_average >= state_handle->ignition_switch_close_temp + 30 || state_handle->ignition_switch_close_temp >= 400))
+        if(state_handle->last_temp_average <= 1200 && state_handle->last_temp_average >= 800 && (state_handle->last_temp_average >= state_handle->ignition_switch_close_temp + 30 || state_handle->ignition_switch_close_temp >= 400))
         {
-            if(abs(very_gentle_temp1 - state_handle->last_temp_average) > 60 )      //适配ET70采集温度较为跳动，修改为上下跳动6度
+            if (fluctuation_tick > 0)
+            {
+                if (state_handle->total_tick < (fluctuation_tick + 5 * 60 * 4))
+                {
+                    log_debug("进入: 出现波动后锁定5分钟,不建立平衡(%d/%d)", state_handle->total_tick, fluctuation_tick + 5 * 60 * 4);
+                }
+                else
+                {
+                    log_debug("退出: 出现波动后锁定5分钟,不建立平衡");
+                    fluctuation_tick = 0;
+                }
+            }
+            else if(abs(very_gentle_temp1 - state_handle->last_temp_average) > 60 )      //适配ET70采集温度较为跳动，修改为上下跳动6度
             {
                 very_gentle_temp1 = state_handle->last_temp_average;
                 very_gentle_temp1_tick = 0;
@@ -1703,7 +1777,7 @@ static int dryburn_judge(unsigned char prepare_state,state_handle_t *state_handl
 
                 log_debug("count整数温度：%d,温度差值：%d last_temp2_tick:%d",count,state_handle->last_average_temp_arr[state_handle->arr_size - 1] - state_handle->last_average_temp_arr[0],very_gentle_temp2_tick);
                 //全程小火最新平均数据大于最早平均数据，但大于的值不超过14℃，出现小火陶瓷锅漏掉的情况将-25修改为-50
-                if(count >= BURN_DATA_SIZE - 50 && state_handle->last_average_temp_arr[state_handle->arr_size - 1] > state_handle->last_average_temp_arr[0] && \
+                if(count >= BURN_DATA_SIZE - 40 && state_handle->last_average_temp_arr[state_handle->arr_size - 1] > state_handle->last_average_temp_arr[0] && \
                 abs(state_handle->last_average_temp_arr[state_handle->arr_size - 1] - state_handle->last_average_temp_arr[0]) <= 140) 
                 {
                     log_debug("认为此曲线是阶梯上升的曲线，不对very_gentle_temp2赋值");
@@ -1749,8 +1823,8 @@ static int dryburn_judge(unsigned char prepare_state,state_handle_t *state_handl
         //     log_debug("[%s],very_gentle_temp2:%d",__func__,very_gentle_temp2);
         // }
 
-        //开火250s后才会获取非常非常平缓温度
-        if(state_handle->total_tick > 250*INPUT_DATA_HZ && very_very_gentle_temp_tick >= 12*INPUT_DATA_HZ)
+        //开火250s后才会获取非常非常平缓温度，部分正常烹饪，加热阶段出现过稳定时间为10s的非常平稳，防止误触设置时间为15s
+        if(state_handle->total_tick > 250*INPUT_DATA_HZ && very_very_gentle_temp_tick >= 15*INPUT_DATA_HZ)
         {
             //过去的BURN_DATA_SIZE个平均值的平均值
             unsigned int average_temp = 0;
@@ -1798,7 +1872,7 @@ static int dryburn_judge(unsigned char prepare_state,state_handle_t *state_handl
                     very_very_gentle_temp_longest_timestamp = state_handle->total_tick - very_very_gentle_temp_longest_tick;    //准确记录该温度首次出现的时间戳要减去前面累计的时间
                     log_debug("flush last_gentle最长时间的温度是：%d,持续时间longest_time是：%d",very_very_gentle_temp_longest,very_very_gentle_temp_longest_tick);
                     
-                    //这里增加一处赋值，为了防止获得了very_very_gentle后没有后续12s稳定温度的情况
+                    //这里增加一处赋值，为了防止获得了very_very_gentle后没有后续稳定温度的情况
                     very_gentle_temp2 = very_very_gentle_temp;
                     //very_gentle_temp2_tick = state_handle->total_tick;
                 }
@@ -1834,9 +1908,22 @@ static int dryburn_judge(unsigned char prepare_state,state_handle_t *state_handl
         if(abs(state_handle->last_temp_data[STATE_JUDGE_DATA_SIZE - 1] - state_handle->last_temp_data[STATE_JUDGE_DATA_SIZE - 2]) > 60)
         {
             very_gentle_temp2 = 0;
+            very_gentle_temp1 = 0;
+            very_gentle_temp1_tick = 0;
             very_gentle_temp2_tick = 0;
+            very_very_gentle_temp_tick = 0;
             log_debug("温度变化较快very_gentle_temp2清零");
         }
+        // else if(very_gentle_temp2 > 400 && very_gentle_temp2 <= 800 && (abs(state_handle->last_temp_data[STATE_JUDGE_DATA_SIZE - 1] - state_handle->last_temp_data[STATE_JUDGE_DATA_SIZE - 2]) >30) || \
+        // (abs(state_handle->last_temp_data[STATE_JUDGE_DATA_SIZE - 1] - state_handle->last_temp_data[STATE_JUDGE_DATA_SIZE - 3]) > 30) )
+        // {
+        //     very_gentle_temp2 = 0;
+        //     very_gentle_temp1 = 0;
+        //     very_gentle_temp1_tick = 0;
+        //     very_gentle_temp2_tick = 0;
+        //     very_very_gentle_temp_tick = 0;
+        //     log_debug("40-80度平衡，温度变化较快very_gentle_temp2清零");
+        // }
 
         //温度较低的锅盖干烧时温度上升也比较慢，所以开始判断干烧的温度幅度设置的更小
         //modify 230901为了适配下饺子后温度会在79℃得到一个very_gentle_temp2随后饺子煮开导致误触防干烧调整dryburn_judge_temp的设置范围，炖鸡腿的时候也会得到72℃的very_gentle_temp2
@@ -1854,11 +1941,11 @@ static int dryburn_judge(unsigned char prepare_state,state_handle_t *state_handl
         }
         else if(very_gentle_temp2 >= 950 && very_gentle_temp2 <= 1100)
         {
-            dryburn_judge_temp = 60;
+            dryburn_judge_temp = 80;
         }
         else if(very_gentle_temp2 > 1100)
         {
-            dryburn_judge_temp = 60;
+            dryburn_judge_temp = 70;
         }   
         log_debug("[%s],last_temp_average_temp:%d",__func__,state_handle->last_temp_average);
         log_debug("[%s],gentle_state_enter_temp:%d",__func__,state_handle->gentle_state_enter_temp);
@@ -1893,16 +1980,16 @@ static int dryburn_judge(unsigned char prepare_state,state_handle_t *state_handl
         获得非常平缓温度后连续上升认定为防干烧
         */
         if(\
-        (state_handle->high_temp_shake_flag == 0 && state_handle->shake_exit_average_temp <= 1500 && \
+        /*(state_handle->high_temp_shake_flag == 0 && state_handle->shake_exit_average_temp <= 1500 && \
         (state_handle->pre_state == STATE_SHAKE || state_handle->pre_pre_state == STATE_SHAKE || (state_handle->heat_pot_flag == 1 && state_handle->shake_status_flag == 1)) && \
         state_handle->total_tick >= state_handle->shake_exit_timestamp + 30*INPUT_DATA_HZ && state_handle->last_temp_average >= state_handle->shake_exit_average_temp + shake_dryburn_temp && \
-        state_handle->shake_exit_average_temp + shake_dryburn_temp >= 800 && state_handle->shake_down_flag != 1)||\
+        state_handle->shake_exit_average_temp + shake_dryburn_temp >= 800 && state_handle->shake_down_flag != 1)||*/\
 
         (very_gentle_temp2 > 0 && ((state_handle->last_temp_average > very_gentle_temp2 + dryburn_judge_temp && state_handle->last_temp_average < very_gentle_temp2 + 420 && dryburn_judge_temp != 1) \
-        || (state_handle->last_temp_average >= BOILED_TEMP  * 10 && dryburn_judge_temp == 1)) && state_handle->last_temp_average > 400) || \
-
-        (state_handle->shake_status_flag == 1 && state_handle->heat_pot_flag == 1 && state_handle->last_temp_average > state_handle->shake_exit_average_temp + 500 && \
-        state_handle->total_tick > state_handle->shake_exit_timestamp + 80*INPUT_DATA_HZ && state_handle->last_temp_average >= BOILED_TEMP * 10 + 50 && state_handle->shake_down_flag != 1)\
+        || (state_handle->last_temp_average >= BOILED_TEMP  * 10 && dryburn_judge_temp == 1)) && state_handle->last_temp_average > 400) /*||*/ \
+        
+        /*(state_handle->shake_status_flag == 1 && state_handle->heat_pot_flag == 1 && state_handle->last_temp_average > state_handle->shake_exit_average_temp + 500 && \
+        state_handle->total_tick > state_handle->shake_exit_timestamp + 80*INPUT_DATA_HZ && state_handle->last_temp_average >= BOILED_TEMP * 10 + 50 && state_handle->shake_down_flag != 1)*/\
         )
         {
             log_debug("[%s],satisfy major premise",__func__);
@@ -1931,7 +2018,7 @@ static int dryburn_judge(unsigned char prepare_state,state_handle_t *state_handl
             if(count >= 7 && average_reduce_value <= 20 &&(state_handle->last_temp_average >BOILED_TEMP * 10 || (average_grow_value <= 50 && state_handle->last_temp - state_handle->last_temp_average <= 50)))
             {
                 log_debug("[%s],before state is:%s,very_gentle_temp2:%d",__func__,state_info[state_handle->pre_state],very_gentle_temp2);
-                log_debug("dryburn_judge_temp:%d",dryburn_judge_temp);
+                log_debug("last_temp_average:%d,very_gentle_temp2:%d,dryburn_judge_temp:%d",state_handle->last_temp_average,very_gentle_temp2,dryburn_judge_temp);
                 log_debug("current state:%s,pre_state:%s,pre_pre_state:%s",state_info[state_handle->state],state_info[state_handle->pre_state],state_info[state_handle->pre_pre_state]);
                 
                 //此处的if就是上面进入的判断，在这里再次分类是哪种触发方式
@@ -1941,25 +2028,25 @@ static int dryburn_judge(unsigned char prepare_state,state_handle_t *state_handl
                     state_handle->dryburn_reason = 3;
                     return STATE_DRYBURN;
                 }
-                else if(state_handle->high_temp_shake_flag == 0 && state_handle->shake_exit_average_temp <= 1500 && \
-                (state_handle->pre_state == STATE_SHAKE || state_handle->pre_pre_state == STATE_SHAKE || (state_handle->heat_pot_flag == 1 && state_handle->shake_status_flag == 1)) && \
-                state_handle->total_tick >= state_handle->shake_exit_timestamp + 30*INPUT_DATA_HZ && state_handle->last_temp_average >= state_handle->shake_exit_average_temp + shake_dryburn_temp && \
-                state_handle->shake_exit_average_temp + shake_dryburn_temp >= 800 && state_handle->shake_down_flag != 1)
-                {
-                    log_debug("get dryburn from 2 shake");
-                    log_debug("flag:%d",state_handle->shake_down_flag);
-                    state_handle->dryburn_reason = 3;
-                    return STATE_DRYBURN;
-                }
-                else if(state_handle->shake_status_flag == 1 && state_handle->heat_pot_flag == 1 && state_handle->last_temp_average > state_handle->shake_exit_average_temp + 500 && \
-                state_handle->total_tick > state_handle->shake_exit_timestamp + 60*INPUT_DATA_HZ && state_handle->last_temp_average >= BOILED_TEMP * 10 + 50 && state_handle->shake_down_flag != 1)
-                {
-                    //翻炒中平缓上升检测到干烧
-                    log_debug("get dryburn from 3 shake");
-                    state_handle->dryburn_reason = 3;
-                    return STATE_DRYBURN;
-                }
-                state_handle->dryburn_reason = 3;
+                // else if(state_handle->high_temp_shake_flag == 0 && state_handle->shake_exit_average_temp <= 1500 && \
+                // (state_handle->pre_state == STATE_SHAKE || state_handle->pre_pre_state == STATE_SHAKE || (state_handle->heat_pot_flag == 1 && state_handle->shake_status_flag == 1)) && \
+                // state_handle->total_tick >= state_handle->shake_exit_timestamp + 30*INPUT_DATA_HZ && state_handle->last_temp_average >= state_handle->shake_exit_average_temp + shake_dryburn_temp && \
+                // state_handle->shake_exit_average_temp + shake_dryburn_temp >= 800 && state_handle->shake_down_flag != 1)
+                // {
+                //     log_debug("get dryburn from 2 shake");
+                //     log_debug("flag:%d",state_handle->shake_down_flag);
+                //     state_handle->dryburn_reason = 3;
+                //     return STATE_DRYBURN;
+                // }
+                // else if(state_handle->shake_status_flag == 1 && state_handle->heat_pot_flag == 1 && state_handle->last_temp_average > state_handle->shake_exit_average_temp + 500 && \
+                // state_handle->total_tick > state_handle->shake_exit_timestamp + 60*INPUT_DATA_HZ && state_handle->last_temp_average >= BOILED_TEMP * 10 + 50 && state_handle->shake_down_flag != 1)
+                // {
+                //     //翻炒中平缓上升检测到干烧
+                //     log_debug("get dryburn from 3 shake");
+                //     state_handle->dryburn_reason = 3;
+                //     return STATE_DRYBURN;
+                // }
+                //state_handle->dryburn_reason = 3;
                 //return STATE_DRYBURN;
             }
             //防止使用铝盖时开盖误触，检测到100度以内温度上升较快则清除very_gentle_temp2的数值，重新计数
@@ -1979,62 +2066,63 @@ static int dryburn_judge(unsigned char prepare_state,state_handle_t *state_handl
         }
         log_debug("[%s],max_gentle_average_temp:%d",__func__,state_handle->max_gentle_average_temp);
 
-        //针对煲汤，水干之后食材露出时候温度有所下降的情况，且这种情况温度不会再上升只能通过“温降”来判断
-        if(state_handle->arr_size >= 20 && state_handle->last_temp_average <= 1000)
-        {
-            int dry_average[5];
-            char dry_average_str_arr[4 * 5 + 20] = {0};
-            for(i = 0; i < 5; i++)
-            {
-                dry_average[i] = state_handle->last_average_temp_arr[4*i+0] + state_handle->last_average_temp_arr[4*i+1] + \
-                state_handle->last_average_temp_arr[4*i+2] + state_handle->last_average_temp_arr[4*i+3];
-                dry_average[i] /= 4;
-                char s[10];
-                sprintf(s, "%d ", dry_average[i]);
-                strcat(dry_average_str_arr, s);
-            }
-            log_debug("5 dry_average is: %s", dry_average_str_arr);
+        // //针对煲汤，水干之后食材露出时候温度有所下降的情况，且这种情况温度不会再上升只能通过“温降”来判断
+        // if(state_handle->arr_size >= 20 && state_handle->last_temp_average <= 1000)
+        // {
+        //     int dry_average[5];
+        //     char dry_average_str_arr[4 * 5 + 20] = {0};
+        //     for(i = 0; i < 5; i++)
+        //     {
+        //         dry_average[i] = state_handle->last_average_temp_arr[4*i+0] + state_handle->last_average_temp_arr[4*i+1] + \
+        //         state_handle->last_average_temp_arr[4*i+2] + state_handle->last_average_temp_arr[4*i+3];
+        //         dry_average[i] /= 4;
+        //         char s[10];
+        //         sprintf(s, "%d ", dry_average[i]);
+        //         strcat(dry_average_str_arr, s);
+        //     }
+        //     log_debug("5 dry_average is: %s", dry_average_str_arr);
 
-            int dry_count = 0;
-            for(i = 1; i <= 10; i++)
-            {
-                //针对干烧后温度下降幅度较大的食物，例如：面条，温度确实下降且在下降中持续一段时间
-                if(state_handle->last_average_temp_arr[temp-i] + 50 <= state_handle->max_gentle_average_temp && state_handle->max_gentle_average_temp <= 100 * 10)      //手动设置为100
-                {
-                    dry_count++;
-                }
-            }
+        //     int dry_count = 0;
+        //     for(i = 1; i <= 10; i++)
+        //     {
+        //         //针对干烧后温度下降幅度较大的食物，例如：面条，温度确实下降且在下降中持续一段时间
+        //         if(state_handle->last_average_temp_arr[temp-i] + 50 <= state_handle->max_gentle_average_temp && state_handle->max_gentle_average_temp <= 100 * 10)      //手动设置为100
+        //         {
+        //             dry_count++;
+        //         }
+        //     }
 
-            if(dry_count >= 10)
-            {
-                for(i = 0; i < 4; i++)
-                {
-                    if(dry_average[i]-dry_average[i+1] > 0 && dry_average[i]-dry_average[i+1] < 40)
-                    {
-                        dry_count++;
-                    }
-                }
-            }
-            log_debug("dry_count is:%d",dry_count);
+        //     if(dry_count >= 10)
+        //     {
+        //         for(i = 0; i < 4; i++)
+        //         {
+        //             if(dry_average[i]-dry_average[i+1] > 0 && dry_average[i]-dry_average[i+1] < 40)
+        //             {
+        //                 dry_count++;
+        //             }
+        //         }
+        //     }
+        //     log_debug("dry_count is:%d",dry_count);
 
-            if(dry_count == 14)
-            {
-               log_debug("detected water level down");
-                state_handle->water_down_flag = 1;
-                state_handle->water_down_timestamp = state_handle->total_tick;
-            }
-        }
+        //     if(dry_count == 14)
+        //     {
+        //        log_debug("detected water level down");
+        //         state_handle->water_down_flag = 1;
+        //         state_handle->water_down_timestamp = state_handle->total_tick;
+        //     }
+        // }
 
-        if(state_handle->water_down_flag == 1 && state_handle->last_temp_average > 100 * 10)        //手动设置为100
-        {
-            log_debug("get dryburn from water_down temp_down");
-            state_handle->dryburn_reason = 4;
-            return STATE_DRYBURN;
-        }
+        // if(state_handle->water_down_flag == 1 && state_handle->last_temp_average > 100 * 10)        //手动设置为100
+        // {
+        //     // log_debug("get dryburn from water_down temp_down");
+        //     // state_handle->dryburn_reason = 4;
+        //     // return STATE_DRYBURN;
+        // }
     }
     #endif
     return prepare_state;
 }
+
 
 #ifdef DRYBURN_ENABLE
 /**
@@ -2180,6 +2268,7 @@ void ca_dryburn_reinit(state_handle_t *state_handle)
     if(state_handle->dryburn_reason == 2)
     {
         state_handle->tick_for_dryburn = 0;
+        state_handle->index_for_dryburn = 0;
     }
     state_handle->state = STATE_IDLE;
     state_handle->pre_state = STATE_IDLE;
@@ -2250,6 +2339,7 @@ void cook_assistant_reinit(state_handle_t *state_handle)
     state_handle->current_tick = 0;
     state_handle->total_tick = 0;
     state_handle->tick_for_dryburn = 0;
+    state_handle->index_for_dryburn = 0;
 
     state_handle->judge_flag = 0;
     state_handle->judge_30_temp = 0;
@@ -2994,7 +3084,7 @@ static void change_state(state_handle_t *state_handle)
     }
     state_handle->last_temp_average /= 10;
 
-    //log_debug("ring_buffer_peek: %s", peek_data_str);
+    log_debug("ring_buffer_peek: %s", peek_data_str);
     
 
     // 点火开关判断
@@ -3032,9 +3122,6 @@ static void change_state(state_handle_t *state_handle)
         ++state_handle->total_tick;
         ++state_handle->tick_for_dryburn;
     }
-
-    //开火之后才会打印温度数据
-    //LOGI("mars","ring_buffer_peek: %s", peek_data_str);
 
     if (state_hood.gear == GEAR_CLOSE)
     {
