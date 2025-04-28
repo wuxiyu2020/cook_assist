@@ -718,6 +718,7 @@ void boil_status_change(aux_handle_t *aux_handle)
     //初始为空闲，则直接接收传入的新的状态
     if(aux_handle->boil_current_tendency == IDLE && aux_handle->boil_next_tendency != IDLE)
     {
+        LOGI("aux", "煮模式: boil_status_change 1 %d=>%d", aux_handle->boil_current_tendency, aux_handle->boil_next_tendency);
         aux_handle->boil_current_tendency = aux_handle->boil_next_tendency;
         aux_handle->boil_current_status_tick = 0;
         aux_handle->boil_next_status_tick = 0;
@@ -726,7 +727,7 @@ void boil_status_change(aux_handle_t *aux_handle)
     {
         if(aux_handle->boil_next_status_tick > 4 * 5)
         {
-            LOGI("aux","[change_status],to idle ");
+            LOGI("aux", "煮模式: boil_status_change 2 %d=>%d", aux_handle->boil_current_tendency, aux_handle->boil_next_tendency);
             aux_handle->boil_current_tendency = aux_handle->boil_next_tendency;
             aux_handle->boil_current_status_tick = 0;
             aux_handle->boil_next_status_tick = 0;
@@ -737,6 +738,7 @@ void boil_status_change(aux_handle_t *aux_handle)
         if(aux_handle->boil_next_status_tick > 4 * 6)
         {
             LOGI("aux","[change_status],rise to %s ",boil_status_info[aux_handle->boil_next_tendency]);
+            LOGI("aux", "煮模式: boil_status_change 3 %d=>%d", aux_handle->boil_current_tendency, aux_handle->boil_next_tendency);
             aux_handle->boil_current_tendency = aux_handle->boil_next_tendency;
             aux_handle->boil_current_status_tick = 0;
             aux_handle->boil_next_status_tick = 0;
@@ -746,6 +748,7 @@ void boil_status_change(aux_handle_t *aux_handle)
     {
         if(aux_handle->boil_next_status_tick > 4 * 2)
         {
+            LOGI("aux", "煮模式: boil_status_change 4 %d=>%d", aux_handle->boil_current_tendency, aux_handle->boil_next_tendency);
             //第二次水开之前切换到了down都会停止计时，再次沸后计时。为了实现冷锅直接开火首次沸腾开始计时，或者首次放入食材后开始计时，后续再次放入食材不再进行计时。
             if(aux_handle->enter_boil_time <= 1)
             {
@@ -769,6 +772,7 @@ void boil_status_change(aux_handle_t *aux_handle)
     {
         if(aux_handle->boil_next_status_tick > 4 * 8)
         {
+            LOGI("aux", "煮模式: boil_status_change 5 %d=>%d", aux_handle->boil_current_tendency, aux_handle->boil_next_tendency);
             aux_handle->boil_current_tendency = aux_handle->boil_next_tendency;
             aux_handle->boil_current_status_tick = 0;
             aux_handle->boil_next_status_tick = 0;
@@ -776,6 +780,7 @@ void boil_status_change(aux_handle_t *aux_handle)
     }
     else if(aux_handle->boil_current_tendency == BOILED && aux_handle->boil_next_tendency != BOILED)
     {
+        LOGI("aux", "煮模式: boil_status_change 6 %d=>%d", aux_handle->boil_current_tendency, aux_handle->boil_next_tendency);
         if(aux_handle->boil_next_tendency == GENTLE)
         {
             LOGI("aux","要切换的是gentle，仍然保持boil状态");
