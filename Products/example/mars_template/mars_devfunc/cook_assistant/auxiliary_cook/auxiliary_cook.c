@@ -268,7 +268,7 @@ void run_fsm(func_ptr_fsm_t* fsm, void* user)
 #define BOIL_MODE_MAX_HEAT_TIME 10 * 4 * 60
 
 aux_handle_t g_aux_state[2];
-char *boil_status_info[]={"idle","gentle","rise","down","boiled"};
+char *boil_status_info[]={"空闲", "平缓", "上升", "下降", "沸腾"};
 char *aux_mode[] = {"退出辅助烹饪", "炒模式","煮模式","煎模式","炸模式"};
 
 int(*beep_control_cb)(int beep_type);
@@ -388,7 +388,7 @@ int change_multivalve_gear(unsigned char gear, enum INPUT_DIR input_dir)
     //煮模式最后两分钟,只接受1档设置
     if(aux_handle->aux_type == MODE_ZHU && aux_handle->aux_remain_time <= 2 * 60 * INPUT_DATA_HZ && gear != 0x01)
     {
-        return -1;
+        ///return -1;
     }
     
 
@@ -519,6 +519,7 @@ void cook_aux_reinit(enum INPUT_DIR input_dir)
     aux_handle->aux_boil_counttime_flag = 0;
     aux_handle->aux_boil_type = 0;
     aux_handle->tick_first_boil = 0;
+    aux_handle->put_food_cnt    = 0;
 
 
     //炸模式变量重置
@@ -620,7 +621,7 @@ void aux_temp_save(aux_handle_t *aux_handle, unsigned short temp)
  */
 int judge_water_boil(aux_handle_t *aux_handle)
 {
-    LOGI("aux","enter boil judge");
+    LOGI("aux","judge_water_boil: enter boil judge");
     //煮模式中的保底时间到，尚未发生过水开场景，保底认为水开
     if(aux_handle->aux_total_tick >= BOIL_MODE_MAX_HEAT_TIME && aux_handle->aux_type == MODE_ZHU &&\
      aux_handle->enter_boil_time < 1)
@@ -652,7 +653,7 @@ int judge_water_boil(aux_handle_t *aux_handle)
         //首个平均温度和最后一个平均温度时间间隔为2.5*9=22.5s的时间温度上升了超过11度
         if(aux_handle->average_temp_array[ARRAY_DATA_SIZE - 1] - aux_handle->average_temp_array[0] >= 11 * 10)
         {
-            LOGI("aux","[%s]very_gentle_temp get boiled!!! ",__func__);
+            LOGI("aux","judge_water_boil: 判断水已煮开1 !!!");
             return 1;
         }
     }
@@ -701,6 +702,7 @@ int judge_water_boil(aux_handle_t *aux_handle)
         }
         if(stable_count >= 9)
         {
+            LOGI("aux","judge_water_boil: 判断水已煮开2 !!!");
             return 1;
         }
     }
@@ -714,20 +716,26 @@ int judge_water_boil(aux_handle_t *aux_handle)
  */
 void boil_status_change(aux_handle_t *aux_handle)
 {
-    //状态切换判断
+    LOGI("aux", "煮模式: boil_status_change %s %d => %s %d", 
+        boil_status_info[aux_handle->boil_current_tendency],
+        aux_handle->boil_current_status_tick, 
+        boil_status_info[aux_handle->boil_next_tendency], 
+        aux_handle->boil_next_status_tick);
+
     //初始为空闲，则直接接收传入的新的状态
     if(aux_handle->boil_current_tendency == IDLE && aux_handle->boil_next_tendency != IDLE)
     {
-        LOGI("aux", "煮模式: boil_status_change 1 %d=>%d", aux_handle->boil_current_tendency, aux_handle->boil_next_tendency);
-        aux_handle->boil_current_tendency = aux_handle->boil_next_tendency;
+        LOGI("aux", "煮模式: boil_status_change 1");
+        aux_handle->boil_current_tendency    = aux_handle->boil_next_tendency;
         aux_handle->boil_current_status_tick = 0;
-        aux_handle->boil_next_status_tick = 0;
+        aux_handle->boil_next_status_tick    = 0;
     }
     else if(aux_handle->boil_current_tendency != IDLE && aux_handle->boil_next_tendency == IDLE)
     {
+        LOGI("aux", "煮模式: boil_status_change 2-0");
         if(aux_handle->boil_next_status_tick > 4 * 5)
         {
-            LOGI("aux", "煮模式: boil_status_change 2 %d=>%d", aux_handle->boil_current_tendency, aux_handle->boil_next_tendency);
+            LOGI("aux", "煮模式: boil_status_change 2-1");
             aux_handle->boil_current_tendency = aux_handle->boil_next_tendency;
             aux_handle->boil_current_status_tick = 0;
             aux_handle->boil_next_status_tick = 0;
@@ -735,10 +743,11 @@ void boil_status_change(aux_handle_t *aux_handle)
     }
     else if(aux_handle->boil_current_tendency == RISE && aux_handle->boil_next_tendency != RISE)
     {
+        LOGI("aux", "煮模式: boil_status_change 3-0");
         if(aux_handle->boil_next_status_tick > 4 * 6)
         {
-            LOGI("aux","[change_status],rise to %s ",boil_status_info[aux_handle->boil_next_tendency]);
-            LOGI("aux", "煮模式: boil_status_change 3 %d=>%d", aux_handle->boil_current_tendency, aux_handle->boil_next_tendency);
+            LOGI("aux", "煮模式: boil_status_change 3-1");
+            LOGI("aux","煮模式: boil_status_change 3: rise to %s ",boil_status_info[aux_handle->boil_next_tendency]);
             aux_handle->boil_current_tendency = aux_handle->boil_next_tendency;
             aux_handle->boil_current_status_tick = 0;
             aux_handle->boil_next_status_tick = 0;
@@ -746,11 +755,19 @@ void boil_status_change(aux_handle_t *aux_handle)
     }
     else if(aux_handle->boil_current_tendency == DOWN && aux_handle->boil_next_tendency != DOWN)
     {
+        LOGI("aux", "煮模式: boil_status_change 4-0");
         if(aux_handle->boil_next_status_tick > 4 * 2)
         {
-            LOGI("aux", "煮模式: boil_status_change 4 %d=>%d", aux_handle->boil_current_tendency, aux_handle->boil_next_tendency);
+            LOGI("aux", "煮模式: boil_status_change 4-1");
             //第二次水开之前切换到了down都会停止计时，再次沸后计时。为了实现冷锅直接开火首次沸腾开始计时，或者首次放入食材后开始计时，后续再次放入食材不再进行计时。
-            if(aux_handle->enter_boil_time <= 1)
+            bool time_limit = true;
+            if ((aux_handle->tick_first_boil != 0) && ((aos_now_ms() - aux_handle->tick_first_boil) > 5*60*1000) )
+            {
+                time_limit = false;
+                LOGI("aux", "煮模式: 距离首次水开已经超过5分钟，不再重新倒计时");
+            }
+
+            if ((aux_handle->enter_boil_time <= 1) && time_limit)  //5分钟内并且首次下菜：重新倒计时; 其他情况：继续倒计时
             {
                 aux_handle->aux_boil_counttime_flag = 0;    //停止计时
                 aux_handle->aux_remain_time = aux_handle->aux_set_time * 60 * AUX_DATA_HZ;
@@ -758,31 +775,33 @@ void boil_status_change(aux_handle_t *aux_handle)
                 if(aux_remaintime_cb != NULL)
                 {
                     int left_min = aux_handle->aux_remain_time / (60 * AUX_DATA_HZ);
-                    LOGI("aux", "重置倒计时,left_min:%d",left_min);
+                    LOGI("aux", "煮模式: 重置倒计时并且暂停计时, %d分钟",left_min);
                     //回调函数通知电控显示倒计时时间发生了变化，倒计时时间的单位是min
                     aux_remaintime_cb(left_min);
                 }
             }
-            aux_handle->boil_current_tendency = aux_handle->boil_next_tendency;
+            aux_handle->boil_current_tendency    = aux_handle->boil_next_tendency;
             aux_handle->boil_current_status_tick = 0;
-            aux_handle->boil_next_status_tick = 0;
+            aux_handle->boil_next_status_tick    = 0;
         }
     }
     else if(aux_handle->boil_current_tendency == GENTLE && aux_handle->boil_next_tendency != GENTLE)
     {
+        LOGI("aux", "煮模式: boil_status_change 5-0");
         if(aux_handle->boil_next_status_tick > 4 * 8)
         {
-            LOGI("aux", "煮模式: boil_status_change 5 %d=>%d", aux_handle->boil_current_tendency, aux_handle->boil_next_tendency);
+            LOGI("aux", "煮模式: boil_status_change 5-1");
             aux_handle->boil_current_tendency = aux_handle->boil_next_tendency;
             aux_handle->boil_current_status_tick = 0;
             aux_handle->boil_next_status_tick = 0;
         }
     }
     else if(aux_handle->boil_current_tendency == BOILED && aux_handle->boil_next_tendency != BOILED)
-    {
-        LOGI("aux", "煮模式: boil_status_change 6 %d=>%d", aux_handle->boil_current_tendency, aux_handle->boil_next_tendency);
+    {     
+        LOGI("aux", "煮模式: boil_status_change 6-0");   
         if(aux_handle->boil_next_tendency == GENTLE)
         {
+            LOGI("aux", "煮模式: boil_status_change 6-1");
             LOGI("aux","要切换的是gentle，仍然保持boil状态");
         }
         //status change: BOIL->DOWN
@@ -796,26 +815,60 @@ void boil_status_change(aux_handle_t *aux_handle)
             // }
             // else
             //{
-                LOGI("aux","水沸状态切换到下降状态，八段阀切换为大火1档 ");
-                change_multivalve_gear(0x01, INPUT_RIGHT);
+                LOGI("aux", "煮模式: boil_status_change 6-2");
+                LOGI("aux","水沸状态切换到下降状态，八段阀切换为大火0档 ");
+                change_multivalve_gear(0x00, INPUT_RIGHT);
             //}
+            aux_handle->boil_current_tendency    = aux_handle->boil_next_tendency;
+            aux_handle->boil_current_status_tick = 0; 
+            aux_handle->boil_next_status_tick    = 0;
 
+            aux_handle->put_food_cnt++;
+            LOGI("aux","检测到放入食材 (累计第%d次)", aux_handle->put_food_cnt);
 
+            if (aux_handle->put_food_cnt == 1)
+            {
+                udp_voice_write_sync("已放入食材,开始加热", strlen("已放入食材,开始加热"), 50);
 
-            aux_handle->boil_current_tendency = aux_handle->boil_next_tendency;
-            aux_handle->boil_current_status_tick = 0;
-            aux_handle->boil_next_status_tick = 0;
+                // if ((aux_handle->tick_first_boil != 0) && ((aos_now_ms() - aux_handle->tick_first_boil) < 5*60*1000) )
+                // {
+                //     udp_voice_write_sync("已放入食材,开始加热", strlen("已放入食材,开始加热"), 50);
+                // }
+                // else if ((aux_handle->tick_first_boil != 0) && ((aos_now_ms() - aux_handle->tick_first_boil) >= 5*60*1000) )
+                // {
+                //     int ms_done = aos_now_ms() - aux_handle->tick_first_boil;
+                //     int s_left  = (aux_handle->aux_set_time * 60  * 1000  - ms_done)/1000;
+                //     int m_left  = 0;
+                //     if ((s_left%60) > 0)
+                //         m_left = ((s_left/60) + 1);
+                //     else
+                //         m_left = (s_left/60);
+                //     LOGI("aux", "煮模式: 水开后5分钟放入食材: %d %d %d %d", ms_done, s_left, m_left);                    
+                //     char voice_buff[64] = {0x00};
+                //     snprintf(voice_buff, sizeof(voice_buff), "开始%d分钟倒计时并关火", m_left);
+                //     udp_voice_write_sync(voice_buff, strlen(voice_buff), 50);
+                // }
+            }
         }
         else if(aux_handle->boil_next_tendency == RISE)
         {
+            LOGI("aux", "煮模式: boil_status_change 6-3-0");
             if( aux_handle->boil_next_status_tick > 5 * 10)
             {
+                LOGI("aux", "煮模式: boil_status_change 6-3-1");
                 aux_handle->boil_current_tendency = aux_handle->boil_next_tendency;
                 aux_handle->boil_current_status_tick = 0;
                 aux_handle->boil_next_status_tick = 0;
             }
         }
     }
+
+
+    LOGI("aux", "煮模式: boil_status_change:  current=%s %d | next=%s %d", 
+        boil_status_info[aux_handle->boil_current_tendency],
+        aux_handle->boil_current_status_tick, 
+        boil_status_info[aux_handle->boil_next_tendency], 
+        aux_handle->boil_next_status_tick);
 }
 
 
@@ -845,7 +898,7 @@ void mode_boil_func(aux_handle_t *aux_handle)
         //上升趋势========================================================
         if(aux_handle->temp_array[0] - aux_handle->temp_array[ARRAY_DATA_SIZE - 1] <= 0)
         {
-            LOGI("aux","begin rise tendency judge");            
+            LOGI("aux","开始判断是否上升趋势");            
             
             //两两相邻数据之间的9次比较
             unsigned char very_gentle_count = 0;
@@ -880,22 +933,22 @@ void mode_boil_func(aux_handle_t *aux_handle)
                 }
             }
 
-            LOGI("aux", "rise_count2:%d, very_gentle_count:%d, rise_count3:%d", rise_count2, very_gentle_count,  rise_count3);
+            LOGI("aux", "判断是否上升 rise_count2=%d, very_gentle_count=%d, rise_count3=%d", rise_count2, very_gentle_count,  rise_count3);
             //rise_count3 = (aux_handle->average_temp_array[aux_handle->average_temp_size - 1] - aux_handle->average_temp_array[aux_handle->average_temp_size - 2] >= 10);
             //rise_count3 +=
             //仅仅靠10个温度难以判断是rise还是gentle
             //if((rise_count1 >= 7 && rise_count2 >= 4) ||
             //此处要防止误判为rise状态
-            if(rise_count2 >= 4 || (rise_count3 >= 7 && very_gentle_count <= 7))
+            if((rise_count2 >= 4) || (rise_count3 >= 7 && very_gentle_count <= 7))
             {
                 aux_handle->boil_next_tendency = RISE;
-                LOGI("aux", "煮模式: 温度处于上升趋势");
+                LOGI("aux", "煮模式: 判断趋势 = 上升");
                 break;
             }
         }
         else
         {
-            LOGI("aux","begin down tendency judge");
+            LOGI("aux","开始判断是否下降趋势");
             //下降趋势====================================================
             unsigned char down_count1 = 0;
             for(int i = 0; i < ARRAY_DATA_SIZE - 1; i++)
@@ -911,7 +964,7 @@ void mode_boil_func(aux_handle_t *aux_handle)
             if(aux_handle->boil_next_tendency == DOWN)
             {
                 //aux_handle->boil_next_status_tick = 4 * 5;     //快速的变化直接赋值下降的时间为5s，以及时切换到下降状态
-                LOGI("aux", "煮模式: 温度处于下降趋势");
+                LOGI("aux", "煮模式: 判断趋势 = 下降");
                 break;
             }
 
@@ -947,7 +1000,6 @@ void mode_boil_func(aux_handle_t *aux_handle)
 
         //平缓趋势======================================================================
         unsigned char gentle_count1 = 0;
-        //int gentle_count2 = 0;
         for(int i = 0; i < ARRAY_DATA_SIZE; i++)
         {
             if(abs(aux_handle->temp_array[i] - aux_handle->current_average_temp) < 13)
@@ -965,28 +1017,33 @@ void mode_boil_func(aux_handle_t *aux_handle)
         before_average /= 5;
         after_average /= 5;
 
+        LOGI("aux", "判断是否平缓 gentle_count1=%d, abs(before_average - after_average)=%d, ", gentle_count1, abs(before_average - after_average));
         if( gentle_count1 == 9 || abs(before_average - after_average) < 15)
         {
             aux_handle->boil_next_tendency = GENTLE;
-            LOGI("aux", "煮模式: 温度处于平缓趋势");
+            LOGI("aux", "煮模式: 判断趋势 = 平缓");
             break;
         }
 
         aux_handle->boil_next_tendency = IDLE;
-        LOGI("aux", "煮模式: 温度处于未知,继续保持空闲");
+        LOGI("aux", "煮模式: 判断趋势 = 空闲 (因为无法判断趋势,继续保持空闲)");
         break;
     }while(1);
 
-    //待切换状态变化，则计时清零，开始对新状态进行计时
+    //待切换状态变化，则计时清零，开始对新状态进行计时：煮模式启动时，初始条件是两者相同都是IDLE，如果boil_next_tendency突然变化了，就会触发赋值操作
+    LOGI("aux","煮模式: 本次判断后最新状态(last=%s next=%s)", 
+        boil_status_info[before_next_tendency],
+        boil_status_info[aux_handle->boil_next_tendency]);
     if(aux_handle->boil_next_tendency != before_next_tendency)
     {
-        LOGI("aux","煮模式: 状态发生变化(%d -> %d) (0空前 1平缓 2上升 3下降 4沸腾)", before_next_tendency, aux_handle->boil_next_tendency);
         before_next_tendency = aux_handle->boil_next_tendency;
         aux_handle->boil_next_status_tick = 0;
+        LOGI("aux", "煮模式: boil_next_tendency状态更新 (%d %d)", before_next_tendency, aux_handle->boil_next_tendency);
     }    
     else //状态未发生变化，继续对next_status_tick计时
     {
         aux_handle->boil_next_status_tick++;
+        LOGI("aux", "煮模式: boil_next_tendency状态不变 (%d %d %d)", before_next_tendency, aux_handle->boil_next_tendency, aux_handle->boil_next_status_tick);        
     }
 
     boil_status_change(aux_handle);
@@ -1018,7 +1075,12 @@ void mode_boil_func(aux_handle_t *aux_handle)
     {
         aux_handle->boil_current_tendency = BOILED;
         aux_handle->enter_boil_time++; //进入水开次数累加
-        LOGI("aux", "煮模式: 切换到水开状态 (水开次数=%d)", aux_handle->enter_boil_time);
+        LOGI("aux", "煮模式: 切换到水开状态 (累计第%d次水开)", aux_handle->enter_boil_time);
+        if (aux_handle->enter_boil_time == 1)
+        {
+            aux_handle->tick_first_boil = aos_now_ms();
+            LOGI("aux", "煮模式: 检测到首次水开");
+        }
 
         // //前两次进入水沸状态都重新倒计时，这里对当前倒计时进行清零。对应的是冷水放食材直接煮开到结束，或者冷水煮开后再放食材煮沸后到结束
         // if(aux_handle->enter_boil_time <= 2)
@@ -1026,6 +1088,11 @@ void mode_boil_func(aux_handle_t *aux_handle)
         //     aux_handle->aux_remain_time = aux_handle->aux_set_time * 60 * AUX_DATA_HZ;
         // }
 
+        if (aux_handle->aux_boil_counttime_flag == 0)
+        {
+            aux_handle->aux_boil_counttime_flag = 1;
+            LOGI("aux", "煮模式: 开始倒计时");
+        }
         aux_handle->aux_boil_counttime_flag = 1;        //开启倒计时
 
         if(aux_handle->enter_boil_time == 1)
@@ -1046,6 +1113,30 @@ void mode_boil_func(aux_handle_t *aux_handle)
         //非首次水开
         else
         {
+            if (aux_handle->enter_boil_time == 2)
+            {                
+                if ((aux_handle->tick_first_boil != 0) && ((aos_now_ms() - aux_handle->tick_first_boil) >= 5*60*1000) )
+                {
+                    int ms_done = aos_now_ms() - aux_handle->tick_first_boil;
+                    int s_left  = (aux_handle->aux_set_time * 60  * 1000  - ms_done)/1000;
+                    int m_left  = 0;
+                    if ((s_left%60) > 0)
+                        m_left = ((s_left/60) + 1);
+                    else
+                        m_left = (s_left/60);
+                    LOGI("aux", "煮模式: 水开后5分钟放入食材: %d %d %d %d", ms_done, s_left, m_left);                    
+                    char voice_buff[64] = {0x00};
+                    snprintf(voice_buff, sizeof(voice_buff), "开始%d分钟倒计时并关火", m_left);
+                    udp_voice_write_sync(voice_buff, strlen(voice_buff), 50);
+                }
+                else
+                {                   
+                    char voice_buff[64] = {0x00};
+                    snprintf(voice_buff, sizeof(voice_buff), "开始%d分钟倒计时关火", aux_handle->aux_set_time);
+                    udp_voice_write_sync(voice_buff, strlen(voice_buff), 50);
+                }
+            }
+
             //检测到水开，根据不同的设定时间来调整火力档位
             if(aux_handle->aux_boil_type == BOIL_0_8)
             {
@@ -1100,12 +1191,14 @@ void mode_boil_func(aux_handle_t *aux_handle)
 
     //aux暂时设置，enter_boil_time>1之后直接执行aux_handle->aux_remain_time--;即可，不需要再次区分，上方进入水沸的时候会判断是否需要清空
     if(aux_handle->aux_boil_counttime_flag == 1)
-    {
+    {        
         if(aux_handle->aux_remain_time > 0)
         {
             aux_handle->aux_remain_time--;
         }
+        LOGI("aux","倒计时进行中......(%d)", aux_handle->aux_remain_time);
 
+        /*
         if(aux_handle->enter_boil_time == 1)
         {
             LOGI("aux","首次沸腾，开始倒计时 ");
@@ -1119,9 +1212,18 @@ void mode_boil_func(aux_handle_t *aux_handle)
             //后续进入沸腾仍然按照之前的倒计时进行
             LOGI("aux","后续沸腾，继续计时 ");
         }
+        */
+    }
+    else
+    {
+        LOGI("aux","倒计时已经停止！");
     }
 
 
+    if(aux_handle->aux_remain_time == 40 && aux_handle->boil_current_tendency == BOILED)
+    {
+        udp_voice_write_sync("请注意: 10秒后即将关火", strlen("请注意: 10秒后即将关火"), 50);
+    }
 
     //煮模式计时结束且当前处于沸腾状态，关火，通知电控模式成功退出
     if(aux_handle->aux_remain_time == 0 && aux_handle->boil_current_tendency == BOILED)
@@ -1135,6 +1237,7 @@ void mode_boil_func(aux_handle_t *aux_handle)
         aux_handle->aux_switch = 0;                 //辅助烹饪煮模式结束
         if(aux_exit_cb != NULL)
         {
+            udp_voice_write_sync("定时时间到", strlen("定时时间到"), 50);
             aux_exit_cb(AUX_SUCCESS_EXIT);              //成功退出
         }
 
@@ -1144,16 +1247,18 @@ void mode_boil_func(aux_handle_t *aux_handle)
     }
     else if(aux_handle->aux_remain_time <= 2 * 60 * INPUT_DATA_HZ && aux_handle->aux_multivalve_gear != 0x01)
     {
-        LOGW("aux","最后两分钟切换为1档火焰,last 2 min valve change to gear 1");
-        change_multivalve_gear(0x01, INPUT_RIGHT);
+        //LOGW("aux","最后两分钟切换为1档火焰,last 2 min valve change to gear 1");
+        //change_multivalve_gear(0x01, INPUT_RIGHT);
     }
 
     aux_handle->boil_current_status_tick++;
 
-    LOGI("aux","boil_remain_time:%d,enter_boil_time:%d ",aux_handle->aux_remain_time,aux_handle->enter_boil_time);
-    LOGI("aux","[%s]current status:[%s],total_tick:%d,current_status_tick:%d,next_status:%s,next_status_tick:%d,current gear:%d ",\
-    __func__,boil_status_info[aux_handle->boil_current_tendency ],aux_handle->aux_total_tick,aux_handle->boil_current_status_tick,\
-    boil_status_info[aux_handle->boil_next_tendency],aux_handle->boil_next_status_tick,aux_handle->aux_multivalve_gear);
+    LOGI("aux","boil_remain_time:%d,  enter_boil_time:%d ",aux_handle->aux_remain_time, aux_handle->enter_boil_time);
+    LOGI("aux","total_tick:%d,   current status:[%s], current tick:%d,   next status:%s, next tick:%d,   current gear:%d ",
+        aux_handle->aux_total_tick,
+        boil_status_info[aux_handle->boil_current_tendency ],aux_handle->boil_current_status_tick,
+        boil_status_info[aux_handle->boil_next_tendency],aux_handle->boil_next_status_tick,
+        aux_handle->aux_multivalve_gear);
 }
 
 
