@@ -265,7 +265,7 @@ void run_fsm(func_ptr_fsm_t* fsm, void* user)
 }
 
 //煮模式加热水沸保底时间10min
-#define BOIL_MODE_MAX_HEAT_TIME 10 * 4 * 60
+#define BOIL_MODE_MAX_HEAT_TIME (10 * 4 * 60)
 
 aux_handle_t g_aux_state[2];
 char *boil_status_info[]={"空闲", "平缓", "上升", "下降", "沸腾"};
@@ -621,16 +621,16 @@ void aux_temp_save(aux_handle_t *aux_handle, unsigned short temp)
  */
 int judge_water_boil(aux_handle_t *aux_handle)
 {
-    LOGI("aux","judge_water_boil: enter boil judge");
+    //LOGI("aux","judge_water_boil: enter boil judge");
+
     //煮模式中的保底时间到，尚未发生过水开场景，保底认为水开
-    if(aux_handle->aux_total_tick >= BOIL_MODE_MAX_HEAT_TIME && aux_handle->aux_type == MODE_ZHU &&\
-     aux_handle->enter_boil_time < 1)
+    if(aux_handle->aux_total_tick >= BOIL_MODE_MAX_HEAT_TIME && aux_handle->aux_type == MODE_ZHU && aux_handle->enter_boil_time < 1)
     {
-        LOGI("aux","煮模式保底时间到认为已经是水开");
+        LOGI("aux", "judge_water_boil: 方式0 水已煮开!!! (煮模式保底时间10分钟到)");
         return 1;
     }
 
-    unsigned char very_gentle_count = 0;
+    unsigned char very_gentle_count  = 0;
     unsigned char before_gentle_rise = 0;
     for(int j = 0; j < ARRAY_DATA_SIZE -1; j++)
     {
@@ -648,12 +648,17 @@ int judge_water_boil(aux_handle_t *aux_handle)
     }
 
     //最新的10个温度处于绝对平稳状态，最新的平均温度处于绝对的平稳，此逻辑适用于玻璃盖，因此限制温度为80度以上
-    if(very_gentle_count == ARRAY_DATA_SIZE - 1 && before_gentle_rise == ARRAY_DATA_SIZE - 1 && aux_handle->current_average_temp >= 80 * 10)
+    LOGI("aux","judge_water_boil: 方式1 gentle=%d rise=%d average=%d diff=%d", 
+        very_gentle_count, 
+        before_gentle_rise, 
+        aux_handle->current_average_temp,
+        (int)(aux_handle->average_temp_array[ARRAY_DATA_SIZE - 1]) - (int)(aux_handle->average_temp_array[0]));
+    if((very_gentle_count == ARRAY_DATA_SIZE - 1) && (before_gentle_rise == ARRAY_DATA_SIZE - 1) && (aux_handle->current_average_temp >= 80 * 10))
     {
         //首个平均温度和最后一个平均温度时间间隔为2.5*9=22.5s的时间温度上升了超过11度
         if(aux_handle->average_temp_array[ARRAY_DATA_SIZE - 1] - aux_handle->average_temp_array[0] >= 11 * 10)
         {
-            LOGI("aux","judge_water_boil: 判断水已煮开1 !!!");
+            LOGI("aux", "judge_water_boil: 方式1 水已煮开!!!");
             return 1;
         }
     }
@@ -684,10 +689,10 @@ int judge_water_boil(aux_handle_t *aux_handle)
         // rise_count2 += (aux_handle->average_temp_array[1] < aux_handle->average_temp_array[6]);
         // rise_count2 += (aux_handle->average_temp_array[2] < aux_handle->average_temp_array[7]);
 
-        LOGI("aux","[%s],rise_count1:%d,rise_count2:%d ",__func__, rise_count1, rise_count2);
+        LOGI("aux", "judge_water_boil: 方式2 rise_count1=%d rise_count2=%d ", rise_count1, rise_count2);
         if(rise_count1 >= 6 || rise_count2 >= 3)
         {
-            LOGI("aux","[%s]认为仍然处于缓慢上升状态 ",__func__);
+            LOGI("aux", "judge_water_boil: 方式2 处于缓慢上升状态");
             return 0;
         }
 
@@ -700,12 +705,14 @@ int judge_water_boil(aux_handle_t *aux_handle)
                 stable_count++;
             }
         }
+        LOGI("aux", "judge_water_boil: 方式2 stable_count=%d", stable_count);
         if(stable_count >= 9)
         {
-            LOGI("aux","judge_water_boil: 判断水已煮开2 !!!");
+            LOGI("aux", "judge_water_boil: 方式2 水已煮开!!!");
             return 1;
         }
     }
+
     return 0;
 }
 
@@ -1075,11 +1082,11 @@ void mode_boil_func(aux_handle_t *aux_handle)
     {
         aux_handle->boil_current_tendency = BOILED;
         aux_handle->enter_boil_time++; //进入水开次数累加
-        LOGI("aux", "煮模式: 切换到水开状态 (累计第%d次水开)", aux_handle->enter_boil_time);
+        LOGI("aux", "煮模式: current切换到水开状态 (累计第%d次水开)", aux_handle->enter_boil_time);
         if (aux_handle->enter_boil_time == 1)
         {
             aux_handle->tick_first_boil = aos_now_ms();
-            LOGI("aux", "煮模式: 检测到首次水开");
+            LOGI("aux", "煮模式: 第一次水开");
         }
 
         // //前两次进入水沸状态都重新倒计时，这里对当前倒计时进行清零。对应的是冷水放食材直接煮开到结束，或者冷水煮开后再放食材煮沸后到结束
@@ -1091,7 +1098,7 @@ void mode_boil_func(aux_handle_t *aux_handle)
         if (aux_handle->aux_boil_counttime_flag == 0)
         {
             aux_handle->aux_boil_counttime_flag = 1;
-            LOGI("aux", "煮模式: 开始倒计时");
+            LOGI("aux", "煮模式: 倒计时开始......");
         }
         aux_handle->aux_boil_counttime_flag = 1;        //开启倒计时
 
