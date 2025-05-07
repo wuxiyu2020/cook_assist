@@ -905,7 +905,7 @@ void mode_boil_func(aux_handle_t *aux_handle)
         //上升趋势========================================================
         if(aux_handle->temp_array[0] - aux_handle->temp_array[ARRAY_DATA_SIZE - 1] <= 0)
         {
-            LOGI("aux","开始判断是否上升趋势");            
+            LOGI("aux","煮模式: 判断是否上升?");            
             
             //两两相邻数据之间的9次比较
             unsigned char very_gentle_count = 0;
@@ -940,7 +940,7 @@ void mode_boil_func(aux_handle_t *aux_handle)
                 }
             }
 
-            LOGI("aux", "判断是否上升 rise_count2=%d, very_gentle_count=%d, rise_count3=%d", rise_count2, very_gentle_count,  rise_count3);
+            LOGI("aux", "煮模式: 判断是否上升? rise_count2=%d, very_gentle_count=%d, rise_count3=%d", rise_count2, very_gentle_count,  rise_count3);
             //rise_count3 = (aux_handle->average_temp_array[aux_handle->average_temp_size - 1] - aux_handle->average_temp_array[aux_handle->average_temp_size - 2] >= 10);
             //rise_count3 +=
             //仅仅靠10个温度难以判断是rise还是gentle
@@ -949,13 +949,13 @@ void mode_boil_func(aux_handle_t *aux_handle)
             if((rise_count2 >= 4) || (rise_count3 >= 7 && very_gentle_count <= 7))
             {
                 aux_handle->boil_next_tendency = RISE;
-                LOGI("aux", "煮模式: 判断趋势 = 上升");
+                LOGI("aux", "煮模式: 判断是否上升?  判断趋势 = 上升");
                 break;
             }
         }
         else
         {
-            LOGI("aux","开始判断是否下降趋势");
+            LOGI("aux","煮模式: 判断是否下降?");
             //下降趋势====================================================
             unsigned char down_count1 = 0;
             for(int i = 0; i < ARRAY_DATA_SIZE - 1; i++)
@@ -971,7 +971,7 @@ void mode_boil_func(aux_handle_t *aux_handle)
             if(aux_handle->boil_next_tendency == DOWN)
             {
                 //aux_handle->boil_next_status_tick = 4 * 5;     //快速的变化直接赋值下降的时间为5s，以及时切换到下降状态
-                LOGI("aux", "煮模式: 判断趋势 = 下降");
+                LOGI("aux", "煮模式: 判断是否下降?  判断趋势 = 下降");
                 break;
             }
 
@@ -1015,50 +1015,50 @@ void mode_boil_func(aux_handle_t *aux_handle)
             }
         }
         unsigned int before_average = 0;
-        unsigned int after_average = 0;
+        unsigned int after_average  = 0;
         for(int i = 0;i < ARRAY_DATA_SIZE/2; i++)
         {
             before_average += aux_handle->temp_array[i];
-            after_average += aux_handle->temp_array[i+5];
+            after_average  += aux_handle->temp_array[i+5];
         }
         before_average /= 5;
-        after_average /= 5;
+        after_average  /= 5;
 
-        LOGI("aux", "判断是否平缓 gentle_count1=%d, abs(before_average - after_average)=%d, ", gentle_count1, abs(before_average - after_average));
-        if( gentle_count1 == 9 || abs(before_average - after_average) < 15)
+        LOGI("aux", "煮模式: 判断是否平缓? gentle_count1=%d, abs(before_aver - after_aver)=%d, ", gentle_count1, abs(before_average - after_average));
+        if( gentle_count1 >= 9 || abs(before_average - after_average) < 15)
         {
             aux_handle->boil_next_tendency = GENTLE;
-            LOGI("aux", "煮模式: 判断趋势 = 平缓");
+            LOGI("aux", "煮模式: 判断是否平缓?  判断趋势 = 平缓");
             break;
         }
 
         aux_handle->boil_next_tendency = IDLE;
-        LOGI("aux", "煮模式: 判断趋势 = 空闲 (因为无法判断趋势,继续保持空闲)");
+        LOGI("aux", "煮模式: 判断趋势 = 空闲 (非上升、非下降、 非平缓)");
         break;
     }while(1);
 
     //待切换状态变化，则计时清零，开始对新状态进行计时：煮模式启动时，初始条件是两者相同都是IDLE，如果boil_next_tendency突然变化了，就会触发赋值操作
-    LOGI("aux","煮模式: 本次判断后最新状态(last=%s next=%s)", 
+    LOGI("aux","煮模式: 本次判断后 next_tendency 最新状态 (last=%s next=%s)", 
         boil_status_info[before_next_tendency],
         boil_status_info[aux_handle->boil_next_tendency]);
     if(aux_handle->boil_next_tendency != before_next_tendency)
     {
+        LOGI("aux", "煮模式: next_tendency 状态变化 (%s -> %s)", boil_status_info[before_next_tendency], boil_status_info[aux_handle->boil_next_tendency]);
         before_next_tendency = aux_handle->boil_next_tendency;
         aux_handle->boil_next_status_tick = 0;
-        LOGI("aux", "煮模式: boil_next_tendency状态更新 (%d %d)", before_next_tendency, aux_handle->boil_next_tendency);
-    }    
-    else //状态未发生变化，继续对next_status_tick计时
+    }
+    else
     {
         aux_handle->boil_next_status_tick++;
-        LOGI("aux", "煮模式: boil_next_tendency状态不变 (%d %d %d)", before_next_tendency, aux_handle->boil_next_tendency, aux_handle->boil_next_status_tick);        
+        LOGI("aux", "煮模式: next_tendency 状态不变 (%s == %s  tick=%d)", boil_status_info[before_next_tendency], boil_status_info[aux_handle->boil_next_tendency], aux_handle->boil_next_status_tick);
     }
 
     boil_status_change(aux_handle);
 
-    int ret = 0;
-    //Gentle中判断水开
-    if(aux_handle->boil_current_tendency == GENTLE && aux_handle->current_average_temp >50 * 10)
+    int ret = 0;    
+    if(aux_handle->boil_current_tendency == GENTLE && aux_handle->current_average_temp > 50 * 10) //Gentle中判断水开
     {
+        LOGI("aux", "煮模式: 开始判断是否水开? 1");
         ret = judge_water_boil(aux_handle);
     }
     else if(aux_handle->boil_current_tendency == RISE)
@@ -1074,6 +1074,7 @@ void mode_boil_func(aux_handle_t *aux_handle)
 
         if(very_gentle_count == ARRAY_DATA_SIZE - 1)
         {
+            LOGI("aux", "煮模式: 开始判断是否水开? 2 (gentle=%d)", very_gentle_count);
             ret = judge_water_boil(aux_handle);
         }
     }
