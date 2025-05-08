@@ -723,10 +723,10 @@ int judge_water_boil(aux_handle_t *aux_handle)
  */
 void boil_status_change(aux_handle_t *aux_handle)
 {
-    LOGI("aux", "煮模式: boil_status_change start %s %d ===> %s %d", 
+    LOGI("aux", "煮模式: boil_status_change start [%s %d -> %s %d]", 
         boil_status_info[aux_handle->boil_current_tendency],
         aux_handle->boil_current_status_tick, 
-        boil_status_info[aux_handle->boil_next_tendency], 
+        boil_status_info[aux_handle->boil_next_tendency],
         aux_handle->boil_next_status_tick);
 
     //初始为空闲，则直接接收传入的新的状态
@@ -753,8 +753,7 @@ void boil_status_change(aux_handle_t *aux_handle)
         LOGI("aux", "煮模式: boil_status_change 3-0 (%d/%d)", aux_handle->boil_next_status_tick, 4*6);
         if(aux_handle->boil_next_status_tick > 4 * 6)
         {
-            LOGI("aux", "煮模式: boil_status_change 3-1");
-            LOGI("aux","煮模式: boil_status_change 3: rise to %s ",boil_status_info[aux_handle->boil_next_tendency]);
+            LOGI("aux", "煮模式: boil_status_change 3-1");            
             aux_handle->boil_current_tendency    = aux_handle->boil_next_tendency;
             aux_handle->boil_current_status_tick = 0;
             aux_handle->boil_next_status_tick    = 0;
@@ -765,7 +764,7 @@ void boil_status_change(aux_handle_t *aux_handle)
         LOGI("aux", "煮模式: boil_status_change 4-0 (%d/%d)", aux_handle->boil_next_status_tick, 4*2);
         if (aux_handle->boil_next_status_tick > 4 * 2)
         {
-            LOGI("aux", "煮模式: boil_status_change 4-1  (水开次数=%d · 首次水开=%d秒 距离首次=%d秒)", 
+            LOGI("aux", "煮模式: boil_status_change 4-1  (水开次数=%d · 首次水开时刻=%d秒 距离首次水开=%d秒)",
                 aux_handle->enter_boil_time, 
                 (int)(aux_handle->tick_first_boil/1000), 
                 (int)((aos_now_ms() - aux_handle->tick_first_boil)/1000));
@@ -871,8 +870,7 @@ void boil_status_change(aux_handle_t *aux_handle)
         }
     }
 
-
-    LOGI("aux", "煮模式: boil_status_change end:  current=%s %d | next=%s %d", 
+    LOGI("aux", "煮模式: boil_status_change end:  [%s %d | %s %d]", 
         boil_status_info[aux_handle->boil_current_tendency],
         aux_handle->boil_current_status_tick, 
         boil_status_info[aux_handle->boil_next_tendency], 
