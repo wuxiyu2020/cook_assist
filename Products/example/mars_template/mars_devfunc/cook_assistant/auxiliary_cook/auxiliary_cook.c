@@ -723,7 +723,7 @@ int judge_water_boil(aux_handle_t *aux_handle)
  */
 void boil_status_change(aux_handle_t *aux_handle)
 {
-    LOGI("aux", "煮模式: boil_status_change start %s %d => %s %d", 
+    LOGI("aux", "煮模式: boil_status_change start %s %d ===> %s %d", 
         boil_status_info[aux_handle->boil_current_tendency],
         aux_handle->boil_current_status_tick, 
         boil_status_info[aux_handle->boil_next_tendency], 
@@ -739,30 +739,30 @@ void boil_status_change(aux_handle_t *aux_handle)
     }
     else if(aux_handle->boil_current_tendency != IDLE && aux_handle->boil_next_tendency == IDLE)
     {
-        LOGI("aux", "煮模式: boil_status_change 2-0");
+        LOGI("aux", "煮模式: boil_status_change 2-0 (%d/%d)", aux_handle->boil_next_status_tick, 4*5);
         if(aux_handle->boil_next_status_tick > 4 * 5)
         {
             LOGI("aux", "煮模式: boil_status_change 2-1");
-            aux_handle->boil_current_tendency = aux_handle->boil_next_tendency;
+            aux_handle->boil_current_tendency    = aux_handle->boil_next_tendency;
             aux_handle->boil_current_status_tick = 0;
-            aux_handle->boil_next_status_tick = 0;
+            aux_handle->boil_next_status_tick    = 0;
         }
     }
     else if(aux_handle->boil_current_tendency == RISE && aux_handle->boil_next_tendency != RISE)
     {
-        LOGI("aux", "煮模式: boil_status_change 3-0");
+        LOGI("aux", "煮模式: boil_status_change 3-0 (%d/%d)", aux_handle->boil_next_status_tick, 4*6);
         if(aux_handle->boil_next_status_tick > 4 * 6)
         {
             LOGI("aux", "煮模式: boil_status_change 3-1");
             LOGI("aux","煮模式: boil_status_change 3: rise to %s ",boil_status_info[aux_handle->boil_next_tendency]);
-            aux_handle->boil_current_tendency = aux_handle->boil_next_tendency;
+            aux_handle->boil_current_tendency    = aux_handle->boil_next_tendency;
             aux_handle->boil_current_status_tick = 0;
-            aux_handle->boil_next_status_tick = 0;
+            aux_handle->boil_next_status_tick    = 0;
         }
     }
     else if(aux_handle->boil_current_tendency == DOWN && aux_handle->boil_next_tendency != DOWN)
     {
-        LOGI("aux", "煮模式: boil_status_change 4-0");
+        LOGI("aux", "煮模式: boil_status_change 4-0 (%d/%d)", aux_handle->boil_next_status_tick, 4*2);
         if (aux_handle->boil_next_status_tick > 4 * 2)
         {
             LOGI("aux", "煮模式: boil_status_change 4-1  (水开次数=%d · 首次水开=%d秒 距离首次=%d秒)", 
@@ -796,13 +796,13 @@ void boil_status_change(aux_handle_t *aux_handle)
     }
     else if(aux_handle->boil_current_tendency == GENTLE && aux_handle->boil_next_tendency != GENTLE)
     {
-        LOGI("aux", "煮模式: boil_status_change 5-0");
+        LOGI("aux", "煮模式: boil_status_change 5-0 (%d/%d)", aux_handle->boil_next_status_tick, 4*8);
         if(aux_handle->boil_next_status_tick > 4 * 8)
         {
             LOGI("aux", "煮模式: boil_status_change 5-1");
-            aux_handle->boil_current_tendency = aux_handle->boil_next_tendency;
+            aux_handle->boil_current_tendency    = aux_handle->boil_next_tendency;
             aux_handle->boil_current_status_tick = 0;
-            aux_handle->boil_next_status_tick = 0;
+            aux_handle->boil_next_status_tick    = 0;
         }
     }
     else if(aux_handle->boil_current_tendency == BOILED && aux_handle->boil_next_tendency != BOILED)
@@ -864,9 +864,9 @@ void boil_status_change(aux_handle_t *aux_handle)
             if( aux_handle->boil_next_status_tick > 5 * 10)
             {
                 LOGI("aux", "煮模式: boil_status_change 6-3-1");
-                aux_handle->boil_current_tendency = aux_handle->boil_next_tendency;
+                aux_handle->boil_current_tendency    = aux_handle->boil_next_tendency;
                 aux_handle->boil_current_status_tick = 0;
-                aux_handle->boil_next_status_tick = 0;
+                aux_handle->boil_next_status_tick    = 0;
             }
         }
     }
