@@ -84,6 +84,7 @@ typedef struct
     unsigned short max_up_value;
     uint64_t tick_first_boil;
     unsigned char put_food_cnt;
+    uint64_t put_food_tick_first;
 
     // unsigned char boil_mode_rise_step;              //煮模式加热阶段标志位
     // unsigned int boil_mode_tick;                    //煮模式加热阶段时间计时

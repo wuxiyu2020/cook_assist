@@ -520,6 +520,7 @@ void cook_aux_reinit(enum INPUT_DIR input_dir)
     aux_handle->aux_boil_type = 0;
     aux_handle->tick_first_boil = 0;
     aux_handle->put_food_cnt    = 0;
+    aux_handle->put_food_tick_first = 0;
 
 
     //炸模式变量重置
@@ -836,6 +837,7 @@ void boil_status_change(aux_handle_t *aux_handle)
             if (aux_handle->put_food_cnt == 1)
             {
                 udp_voice_write_sync("已放入食材,开始加热", strlen("已放入食材,开始加热"), 50);
+                aux_handle->put_food_tick_first = aos_now_ms();
 
                 // if ((aux_handle->tick_first_boil != 0) && ((aos_now_ms() - aux_handle->tick_first_boil) < 5*60*1000) )
                 // {
@@ -1123,9 +1125,11 @@ void mode_boil_func(aux_handle_t *aux_handle)
         {
             if (aux_handle->enter_boil_time == 2)
             {                
-                if ((aux_handle->tick_first_boil != 0) && ((aos_now_ms() - aux_handle->tick_first_boil) >= 5*60*1000) )
+                if ((aux_handle->tick_first_boil     != 0) &&
+                    (aux_handle->put_food_tick_first != 0) &&
+                    (aux_handle->put_food_tick_first  >= aux_handle->tick_first_boil + 5*60*1000) )
                 {
-                    int ms_done = aos_now_ms() - aux_handle->tick_first_boil;
+                    int ms_done = (aux_handle->put_food_tick_first - (aux_handle->tick_first_boil + 5*60*1000));
                     int s_left  = (aux_handle->aux_set_time * 60  * 1000  - ms_done)/1000;
                     int m_left  = 0;
                     if ((s_left%60) > 0)
@@ -1622,9 +1626,9 @@ void mode_fry_func(aux_handle_t *aux_handle)
             LOGI("aux","首次达到设定的目标温度，current_average_temp:%d,set_temp:%d",aux_handle->current_average_temp, aux_handle->aux_set_temp * 10);
             beep_control_cb(0x02);
             udp_voice_write_sync("请放入食材", strlen("请放入食材"), 50);
-            aux_handle->first_reach_set_temp_flag = 1;
             time_oil_remind = aos_now_ms();
 
+            aux_handle->first_reach_set_temp_flag = 1;            
             temp_arrive_flag = true;
         }
     }
@@ -1760,7 +1764,7 @@ void mode_fry_func(aux_handle_t *aux_handle)
             return;
         }
 
-        if(aux_handle->fry_last_change_gear_tick >= 10 * 4 && aux_handle->current_average_temp >= aux_handle->aux_set_temp * 10 - 5 * 10)
+        if (aux_handle->fry_last_change_gear_tick >= 10 * 4 && aux_handle->current_average_temp >= aux_handle->aux_set_temp * 10 - 5 * 10)
         {
             LOGI("aux", "炸模式(%d热油-进步控温): %d, %d[距离5]", aux_handle->fry_step, aux_handle->current_average_temp/10, aux_handle->aux_set_temp);
             unsigned char gear = 0;
@@ -1795,7 +1799,7 @@ void mode_fry_func(aux_handle_t *aux_handle)
             // aux_handle->fry_last_change_gear_tick = 0;
 
             aux_handle->fry_step = 2;
-            aux_handle->first_reach_set_temp_flag = 0;
+            //aux_handle->first_reach_set_temp_flag = 0;
             time_up_trend_burn = 0;
             time_up_trend_dry  = 0;
             time_pan_warn_1    = 0;
@@ -2523,8 +2527,20 @@ void chao_heat_onion(func_ptr_fsm_t* fsm, aux_handle_t *aux_handle)
         if (aos_now_ms() - time_dn_trend >= 10*1000)
         {
             LOGI("aux","炒模式(爆香阶段): 10秒内从%d上升到%d 差值=%d", temp_dn_trend, temp_max, temp_max-temp_dn_trend);
-            if ((temp_max <= 80*10) /*|| (temp_dn_trend <= 40*10)*/)  //这里有点担心: 油加多了或者葱姜蒜加多了，会不会也降到40度啊           
+            if ((temp_max <= 80*10) || (aux_handle->current_average_temp <= 90*10))   //下菜后，由于在翻炒,不排除照到锅底，导致个别温度高于80度到达100多度        
             {
+                /*
+                [2025-05-09 14:29:17.383]<I>(aux) 数据统计: 最新温度(536) = 480 | 1670 1670 1670 1670 1670 1670 1670 1660 860 480   (最小值=480 最大值=1670 平均值=1469 中位值=1670)
+                [2025-05-09 14:29:17.634]<I>(aux) 数据统计: 最新温度(537) = 490 | 1670 1670 1670 1670 1670 1670 1660 860 480 490   (最小值=480 最大值=1670 平均值=1351 中位值=1670)
+                [2025-05-09 14:29:17.883]<I>(aux) 数据统计: 最新温度(538) = 430 | 1670 1670 1670 1670 1670 1660 860 480 490 430   (最小值=430 最大值=1670 平均值=1227 中位值=1665)
+                [2025-05-09 14:29:17.384]<I>(aux) judge_cook_trend_down: 缓降!!! (下降个数=3 判断阈值=3)
+                [2025-05-09 14:29:27.633]<I>(aux) 数据统计: 最新温度(577) = 780 | 490 620 1040 830 660 540 580 510 860 780   (最小值=490 最大值=1040 平均值=691 中位值=640)
+                [2025-05-09 14:29:27.634]<I>(aux) 炒模式(爆香阶段): 10秒内从430上升到1040 差值=610
+
+
+                [2025-05-09 15:42:43.018]<I>(aux) 数据统计: 最新温度(385) = 1040 | 620 990 770 570 700 880 610 1040 1050 1040   (最小值=570 最大值=1050 平均值=827 中位值=825)
+                [2025-05-09 15:42:43.019]<I>(aux) 炒模式(爆香阶段): 10秒内从480上升到1050 差值=570
+                */
                 LOGI("aux", "炒模式(爆香阶段): ⇨ 炒食材 (耗时%d秒)", (int)((aos_now_ms() - fsm->state_time)/1000) );
                 switch_fsm_state(fsm, chao_heat_food);
                 beep_control_cb(0x02);
