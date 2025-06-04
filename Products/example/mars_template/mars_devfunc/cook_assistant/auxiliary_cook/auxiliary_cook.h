@@ -55,6 +55,9 @@ enum aux_boile_type
 typedef struct
 {
     unsigned pan_fire_status;                       //烹饪助手移锅小火状态，0：未处于移锅小火状态，1：处于移锅小火状态
+    unsigned pan_fire_status_last;
+    uint64_t pan_fire_status_tick;
+    int      pan_fire_status_count;
 
     unsigned char ignition_switch;                  //点火开关
     unsigned char aux_switch;                       //辅助烹饪开关
@@ -85,6 +88,7 @@ typedef struct
     uint64_t tick_first_boil;
     unsigned char put_food_cnt;
     uint64_t put_food_tick_first;
+    uint64_t put_food_tick_last;
 
     // unsigned char boil_mode_rise_step;              //煮模式加热阶段标志位
     // unsigned int boil_mode_tick;                    //煮模式加热阶段时间计时
@@ -98,9 +102,10 @@ typedef struct
     unsigned int fry_last_gear_average_temp;    //上一次调档前的平均温度
     unsigned char rise_quick_tick;              //快速上升tick，热锅阶段温度上升快
     unsigned char rise_slow_tick;               //缓慢上升tick，热油阶段温度上升慢
+    
+    unsigned char first_hot_pot_flag;           
+    unsigned char first_put_oil_flag;           
     unsigned char first_reach_set_temp_flag;    //首次达到目标温度标志
-    unsigned char first_hot_pot_flag;           //
-    unsigned char first_put_food_flag;          //首次放入食材标志位
 
     /*煎模式相关参数*/
     func_ptr_fsm_t fsm_jian;

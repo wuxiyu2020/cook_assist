@@ -1220,7 +1220,7 @@ void mars_ca_handle()
 {
     mars_ca_para_save();
     report_wifi_property(NULL, NULL);
-    sync_wifi_property();
+    //sync_wifi_property();
 }
 
 void mars_stove_changeReport(cJSON *proot, mars_template_ctx_t *mars_template_ctx)

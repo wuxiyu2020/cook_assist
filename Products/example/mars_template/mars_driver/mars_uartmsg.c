@@ -250,6 +250,13 @@ static void mars_uartmsg_queue_init(void)
     aos_queue_new(g_uartmsg_queue_id, g_uartmsg_queue_buff, UARTMSG_SUM * sizeof(uartmsg_que_t), sizeof(uartmsg_que_t));
 }
 
+char* static_str = "wulanhua: mars_uartmsg_process_thread";
+static void delay_duration_work(void *p)
+{
+    LOGW("mars", "delay_duration_work: %s", (char*)p);
+    aos_post_delayed_action(3000, delay_duration_work, static_str);
+}
+
 void mars_uartmsg_process_thread(void *argv)
 {
     unsigned int recv_len = 0;
@@ -259,6 +266,7 @@ void mars_uartmsg_process_thread(void *argv)
     uint64_t time_weather = 0;
     bool ota_ing = false;
 
+    //aos_post_delayed_action(60*1000, delay_duration_work, static_str);
     while (true) 
     {
         if (aos_queue_recv(g_uartmsg_queue_id, AOS_NO_WAIT, &msg, &recv_len) == 0) //AOS_WAIT_FOREVER 传入0获取不到会立即报失败

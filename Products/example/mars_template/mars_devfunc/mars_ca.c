@@ -420,7 +420,7 @@ static int dry_fire_info_cb(int type, int dryburn_reason)
             user_post_event_json(EVENT_RIGHT_STOVE_DRY_BURN);
         }
         
-        mars_store_dry_fire(type);
+        //mars_store_dry_fire(type);
 
         // if (type == 1)
         // {

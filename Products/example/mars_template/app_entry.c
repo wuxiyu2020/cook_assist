@@ -967,12 +967,12 @@ static void duration_work(void *p)
 
 static int mqtt_connected_event_handler(void)
 {
-    int ret = 0;
-#if defined(OTA_ENABLED) && defined(BUILD_AOS)
-    ret = mars_ota_mqtt_connected();
+//     int ret = 0;
+// #if defined(OTA_ENABLED) && defined(BUILD_AOS)
+//     ret = mars_ota_mqtt_connected();
 
-#endif
-    return ret;
+// #endif
+//     return ret;
 }
 
 static void show_firmware_version(void)

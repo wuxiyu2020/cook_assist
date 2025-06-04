@@ -364,7 +364,7 @@ void mars_factory_uartMsgFromSlave(uint8_t cmd, mars_template_ctx_t *mars_templa
             LOGI("mars", "收到电控板上电通知"); 
             mars_store_time_date();        
             mars_store_netstatus();
-            sync_wifi_property();
+            //sync_wifi_property();
             mars_store_weather();
             mars_devmngr_getstatus(NULL, NULL);  
           //mars_store_swversion();

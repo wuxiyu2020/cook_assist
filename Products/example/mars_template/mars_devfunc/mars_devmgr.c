@@ -477,7 +477,7 @@ bool mars_uart_prop_process(uartmsg_que_t *msg)
     if (is_asssist_change)
     {
         mars_ca_para_save();
-        sync_wifi_property();
+        //sync_wifi_property();
         report_wifi_property(NULL, NULL);
     }
 
@@ -932,7 +932,7 @@ int mars_devmgr_init(void)
     mars_ac_init();
     mars_irtInit();
     mars_ca_init();
-    sync_wifi_property();
+    //sync_wifi_property();
     mars_devmngr_getstatus(NULL, NULL);
 
     return 0;
